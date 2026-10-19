@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  check:
+    name: check / build / test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Toolchain versions
+        run: moon version --all
+
+      - name: Resolve dependencies
+        run: moon update
+
+      - name: Check
+        run: moon check --target wasm-gc
+
+      - name: Build
+        run: moon build --target wasm-gc
+
+      - name: Test
+        run: moon test --target wasm-gc
+
+      - name: Format
+        run: moon fmt --check

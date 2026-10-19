@@ -1,0 +1,5 @@
+// import {
+//   "moonbind-dev/moonbind" @lib,
+// }
+
+pkgtype(kind: "executable")
