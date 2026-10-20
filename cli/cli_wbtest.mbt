@@ -18,10 +18,11 @@ test "a header alone is enough" {
 
 ///|
 test "every option takes the value that follows it" {
-  match parse_args([
-    "foo.h", "--out", "lib/foo.mbt", "--target", "wasm32", "--include", "inc",
-    "--define", "NDEBUG=1", "--report",
-  ]) {
+  match
+    parse_args([
+      "foo.h", "--out", "lib/foo.mbt", "--target", "wasm32", "--include", "inc",
+      "--define", "NDEBUG=1", "--report",
+    ]) {
     Run(o) => {
       assert_true(o.out is Some("lib/foo.mbt"))
       assert_eq(o.target, @layout.Target::wasm32())
@@ -53,40 +54,72 @@ test "help and version short-circuit" {
 
 ///|
 test "a wrong invocation is reported, never guessed at" {
-  assert_true(match parse_args([]) {
-    Bad(_) => true
-    _ => false
-  })
-  assert_true(match parse_args(["a.h", "b.h"]) {
-    Bad(m) => m.contains("more than one header")
-    _ => false
-  })
-  assert_true(match parse_args(["a.h", "--target", "sparc"]) {
-    Bad(m) => m.contains("unknown target")
-    _ => false
-  })
-  assert_true(match parse_args(["a.h", "--out"]) {
-    Bad(m) => m.contains("needs a value")
-    _ => false
-  })
-  assert_true(match parse_args(["a.h", "--bogus"]) {
-    Bad(m) => m.contains("unknown option")
-    _ => false
-  })
+  assert_true(
+    match parse_args([]) {
+      Bad(_) => true
+      _ => false
+    },
+  )
+  assert_true(
+    match parse_args(["a.h", "b.h"]) {
+      Bad(m) => m.contains("more than one header")
+      _ => false
+    },
+  )
+  assert_true(
+    match parse_args(["a.h", "--target", "sparc"]) {
+      Bad(m) => m.contains("unknown target")
+      _ => false
+    },
+  )
+  assert_true(
+    match parse_args(["a.h", "--out"]) {
+      Bad(m) => m.contains("needs a value")
+      _ => false
+    },
+  )
+  assert_true(
+    match parse_args(["a.h", "--bogus"]) {
+      Bad(m) => m.contains("unknown option")
+      _ => false
+    },
+  )
 }
 
 ///|
 test "a lone dash is a header, not an option" {
-  assert_true(match parse_args(["-"]) {
-    Run(o) => o.header == "-"
-    _ => false
-  })
+  assert_true(
+    match parse_args(["-"]) {
+      Run(o) => o.header == "-"
+      _ => false
+    },
+  )
+}
+
+///|
+test "verify is off unless asked for, and takes no value" {
+  match parse_args(["a.h"]) {
+    Run(o) => assert_false(o.verify)
+    other => abort("expected a run")
+  }
+  match parse_args(["a.h", "--verify"]) {
+    Run(o) => {
+      assert_true(o.verify)
+      // It is a plain flag: the header after it is still the header.
+      assert_eq(o.header, "a.h")
+    }
+    other => abort("expected a run")
+  }
 }
 
 ///|
 test "the usage text mentions every option the parser accepts" {
   let text = usage()
-  for flag in ["--out", "--target", "--include", "--define", "--report", "--version", "--help"] {
+  for
+    flag in [
+      "--out", "--target", "--include", "--define", "--report", "--verify", "--version",
+      "--help",
+    ] {
     assert_true(text.contains(flag))
   }
 }

@@ -5,7 +5,7 @@
 // (identical on aarch64-unknown-linux-gnu and on wasm32-unknown-unknown):
 //
 //   struct F1   0:0-25 a   4:0-6 b   [sizeof=8, align=4]
-//   struct F2   0:0-25 a   0:26-29 b [sizeof=4, align=4]
+//   struct F2   0:0-25 a   3:2-5 b   [sizeof=4, align=4]
 //   struct F3   0:0-3 a    1:0-5 b   [sizeof=2, align=1]
 //   struct F4   0:0-3 a    0:4-9 b   [sizeof=4, align=4]
 //   struct F5   0:0-3 a    2:0-13 b  [sizeof=4, align=2]
@@ -14,6 +14,12 @@
 //   struct F8   0:0-2 a    0:3-42 b  [sizeof=8, align=8]
 //   struct F9   0:0-3 a    4:0-29 b  [sizeof=8, align=4]
 //   struct F10  0:0-8 a    2:0-8 b   [sizeof=4, align=2]
+//
+// The range is counted from the byte the field starts in: `b` in F2 begins at
+// bit 26, which is 3:2, and runs 4 bits, so it ends at 3:5 — not at a byte
+// boundary. F2 is 4 bytes because the 26 bits left in the first unit after
+// `a` hold all 4 bits of `b`; F1 is 8 because 7 bits do not fit in the 6 that
+// remain, so `b` starts the next unit.
 
 struct F1 { unsigned a : 26; unsigned b : 7; };
 struct F2 { unsigned a : 26; unsigned b : 4; };

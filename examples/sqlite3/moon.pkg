@@ -1,1 +1,4 @@
-options("native-stub": ["stub.c"])
+options(
+  "native-stub": [ "stub.c" ],
+  "supported-targets": [ "native" ],
+)

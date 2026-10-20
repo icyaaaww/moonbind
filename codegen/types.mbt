@@ -55,9 +55,16 @@ pub let void_ptr_name : String = "VoidPtr"
 /// | How many bytes the native backend gives a field of this MoonBit type, and
 /// | what it aligns it to. The two are always equal, which is why one number is
 /// | enough.
-pub fn slot_size(ty : String) -> Int {
+pub fn slot_size(ty : String) -> Int32 {
   match ty {
-    "Byte" | "Int16" | "UInt16" | "Int" | "UInt" | "Bool" => 4
+    "Byte"
+    | "Int16"
+    | "UInt16"
+    | "Int32"
+    | "UInt32"
+    | "Int"
+    | "UInt"
+    | "Bool" => 4
     _ => 8
   }
 }
@@ -69,8 +76,8 @@ pub fn int_type(kind : @ast.CIntKind) -> String {
     @ast.CI8 | @ast.CU8 => "Byte"
     @ast.CI16 => "Int16"
     @ast.CU16 => "UInt16"
-    @ast.CI32 => "Int"
-    @ast.CU32 => "UInt"
+    @ast.CI32 => "Int32"
+    @ast.CU32 => "UInt32"
     @ast.CI64 => "Int64"
     @ast.CU64 => "UInt64"
   }
@@ -141,9 +148,9 @@ pub fn moon_type(
     @ast.Int(kind) => int_type(kind)
     @ast.Float(kind) => float_type(kind)
     // An enum is an `int` unless an enumerator does not fit, and the layout
-    // engine widens to eight bytes when one does; `Int` covers the common
+    // engine widens to eight bytes when one does; `Int32` covers the common
     // case and the values are emitted as constants either way.
-    @ast.EnumType(_) => "Int"
+    @ast.EnumType(_) => "Int32"
     // A function pointer cannot be called from MoonBit without a trampoline,
     // so it is carried as an opaque handle rather than pretending otherwise.
     @ast.Fn(_) => void_ptr_name
@@ -198,7 +205,7 @@ pub fn float_type(kind : @ast.CFloatKind) -> String {
 }
 
 ///|
-fn round_up(value : Int, align : Int) -> Int {
+fn round_up(value : Int32, align : Int32) -> Int32 {
   if align <= 1 {
     value
   } else {
@@ -214,7 +221,10 @@ fn unrepresentable(module : @ast.CModule, ty : @ast.CType) -> String? {
     @ast.Pointer(_) => Some("a pointer has no MoonBit slot")
     @ast.Fn(_) => Some("a function pointer has no MoonBit slot")
     @ast.Array(_) => Some("an array has no MoonBit slot")
-    @ast.Record(tag) => Some("an embedded struct " + type_name(tag) + " would need its own mirror")
+    @ast.Record(tag) =>
+      Some(
+        "an embedded struct " + type_name(tag) + " would need its own mirror",
+      )
     @ast.Named(name) => Some("unresolved type " + name)
     _ => None
   }
@@ -227,8 +237,8 @@ fn unrepresentable(module : @ast.CModule, ty : @ast.CType) -> String? {
 fn moonbit_mirror(
   module : @ast.CModule,
   decl : @ast.CRecordDecl,
-) -> (Array[(Int, Int)], Int)? {
-  let out : Array[(Int, Int)] = []
+) -> (Array[(Int32, Int32)], Int32)? {
+  let out : Array[(Int32, Int32)] = []
   let mut cursor = 0
   let mut align = 1
   for field in decl.fields {

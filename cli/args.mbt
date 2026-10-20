@@ -23,6 +23,8 @@ pub(all) struct Options {
   pub defines : Array[String]
   /// Print the declarations that were left out, and why.
   pub report : Bool
+  /// Print the record layout table instead of generating bindings.
+  pub verify : Bool
 } derive(Debug, Eq)
 
 ///|
@@ -38,21 +40,12 @@ pub(all) enum Args {
 /// | The text `--help` prints.
 pub fn usage() -> String {
   let lines = [
-    "moonbind — generate MoonBit FFI bindings from a C header",
-    "",
-    "Usage:",
-    "  moonbind <header.h> [options]",
-    "",
-    "Options:",
-    "  --out <dir>         write a complete package into <dir>",
-    "  --target <name>     x86_64 (default), aarch64, or wasm32",
-    "  --include <dir>     add a directory to the include search path",
-    "  --define <M=V>      define a macro before parsing",
-    "  --report            list the declarations that were left out, and why",
-    "  --version           print the version and exit",
-    "  --help              print this text and exit",
-    "",
-    "A declaration is left out rather than emitted approximately: a binding",
+    "moonbind — generate MoonBit FFI bindings from a C header", "", "Usage:", "  moonbind <header.h> [options]",
+    "", "Options:", "  --out <dir>         write a complete package into <dir>",
+    "  --target <name>     x86_64 (default), aarch64, or wasm32", "  --include <dir>     add a directory to the include search path",
+    "  --define <M=V>      define a macro before parsing", "  --report            list the declarations that were left out, and why",
+    "  --verify            print the record layout table instead of bindings", "  --version           print the version and exit",
+    "  --help              print this text and exit", "", "A declaration is left out rather than emitted approximately: a binding",
     "whose layout differs from the header's is worse than a missing one.",
   ]
   let buf = StringBuilder()
@@ -75,6 +68,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let includes : Array[String] = []
   let defines : Array[String] = []
   let mut report = false
+  let mut verify = false
   let mut i = 0
   // A `--out` with no value is the one error that can be spotted in the loop;
   // everything else is checked once the whole list has been read.
@@ -82,17 +76,17 @@ pub fn parse_args(argv : Array[String]) -> Args {
   while i < argv.length() {
     let arg = argv[i]
     match arg {
-      "--help" | "-h" => {
-        return Help
-      }
-      "--version" | "-V" => {
-        return Version
-      }
+      "--help" | "-h" => return Help
+      "--version" | "-V" => return Version
       "--report" => {
         report = true
         i = i + 1
       }
-      "--out" | "--target" | "--include" | "--define" => {
+      "--verify" => {
+        verify = true
+        i = i + 1
+      }
+      "--out" | "--target" | "--include" | "--define" =>
         if i + 1 >= argv.length() {
           missing = Some(arg)
           i = i + 1
@@ -103,16 +97,18 @@ pub fn parse_args(argv : Array[String]) -> Args {
             "--target" =>
               match @layout.Target::parse(value) {
                 Some(t) => target = t
-                None => {
-                  return Bad("unknown target: " + value + " (expected x86_64, aarch64 or wasm32)")
-                }
+                None =>
+                  return Bad(
+                    "unknown target: " +
+                    value +
+                    " (expected x86_64, aarch64 or wasm32)",
+                  )
               }
             "--include" => includes.push(value)
             _ => defines.push(value)
           }
           i = i + 2
         }
-      }
       _ => {
         if arg.has_prefix("-") && arg != "-" {
           return Bad("unknown option: " + arg)
@@ -139,6 +135,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
         include_paths: includes,
         defines,
         report,
+        verify,
       })
   }
 }

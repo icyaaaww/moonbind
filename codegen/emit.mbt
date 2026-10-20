@@ -55,7 +55,7 @@ struct Gen {
   /// Functions left out, with the reason.
   skips : Array[Skip]
   /// Declarations written.
-  mut emitted : Int
+  mut emitted : Int32
 }
 
 ///|
@@ -124,21 +124,27 @@ fn Gen::handle(self : Gen, want : String) -> String {
 ///|
 /// | The type a parameter or return crosses with, claiming any handle type it
 /// | needs. `None` means the type cannot be expressed faithfully.
-fn Gen::declare_type(
-  self : Gen,
-  ty : @ast.CType,
-  pos : Position,
-) -> String? {
+fn Gen::declare_type(self : Gen, ty : @ast.CType, pos : Position) -> String? {
   // A record by value uses the name the generator actually reserved for it,
   // which is not necessarily the name derived from the tag.
   if strip_typedefs(self.module, ty) is @ast.Record(tag) {
     return Some(self.record_type(tag))
   }
   match moon_type(self.module, ty, pos) {
-    "Unit" | "Int" | "UInt" | "Int64" | "UInt64" | "Byte" | "Int16" | "UInt16" |
-    "Float" | "Double" as scalar => Some(scalar)
+    "Unit"
+    | "Int"
+    | "UInt"
+    | "Int32"
+    | "UInt32"
+    | "Int64"
+    | "UInt64"
+    | "Byte"
+    | "Int16"
+    | "UInt16"
+    | "Float"
+    | "Double" as scalar => Some(scalar)
     "Bytes" => Some("Bytes")
-    text => {
+    text =>
       // A name the generator already declared is used as it stands.
       match self.used_types.get(text) {
         Some(_) => Some(text)
@@ -153,7 +159,6 @@ fn Gen::declare_type(
             None
           }
       }
-    }
   }
 }
 
@@ -162,15 +167,29 @@ fn Gen::declare_type(
 /// | must not be listed in `#borrow`.
 fn is_scalar(ty : String) -> Bool {
   match ty {
-    "Int" | "UInt" | "Int64" | "UInt64" | "Byte" | "Int16" | "UInt16" | "Float" |
-    "Double" | "Unit" => true
+    "Int"
+    | "UInt"
+    | "Int32"
+    | "UInt32"
+    | "Int64"
+    | "UInt64"
+    | "Byte"
+    | "Int16"
+    | "UInt16"
+    | "Float"
+    | "Double"
+    | "Unit" => true
     _ => false
   }
 }
 
 ///|
 /// | Emit the header comment naming the input and the target.
-fn emit_header(buf : StringBuilder, module : @ast.CModule, target : @layout.Target) -> Unit {
+fn emit_header(
+  buf : StringBuilder,
+  module : @ast.CModule,
+  target : @layout.Target,
+) -> Unit {
   let abi = match target.abi {
     @layout.SysV64 => "x86_64 SysV"
     @layout.Aapcs64 => "aarch64 AAPCS64"
@@ -258,7 +277,10 @@ fn emit_handle(buf : StringBuilder, handle : String) -> Unit {
   blank(buf)
   line(buf, "/// True when this handle is C's NULL.")
   line(buf, "#borrow(p)")
-  line(buf, "extern \"C\" fn \{slug}_is_null(p : \{handle}) -> Int = \"moonbind_is_null\"")
+  line(
+    buf,
+    "extern \"C\" fn \{slug}_is_null(p : \{handle}) -> Int32 = \"moonbind_is_null\"",
+  )
   blank(buf)
   line(buf, "/// The NULL value for this handle.")
   line(buf, "extern \"C\" fn \{slug}_null() -> \{handle} = \"moonbind_null\"")
@@ -275,8 +297,12 @@ fn emit_handle(buf : StringBuilder, handle : String) -> Unit {
   blank(buf)
   line(buf, "/// An empty slot for a C out-parameter, i.e. a `T **`.")
   line(buf, "///")
-  line(buf, "/// Pass it where the header asks for `T **`, then read the result back")
-  line(buf, "/// with `read_slot`. The slot is rooted in MoonBit for the whole call, so")
+  line(
+    buf, "/// Pass it where the header asks for `T **`, then read the result back",
+  )
+  line(
+    buf, "/// with `read_slot`. The slot is rooted in MoonBit for the whole call, so",
+  )
   line(buf, "/// nothing C writes through it can be collected.")
   line(buf, "pub fn \{handle}::slot() -> Bytes {")
   line(buf, "  \{slug}_make_slot()")
@@ -284,14 +310,20 @@ fn emit_handle(buf : StringBuilder, handle : String) -> Unit {
   blank(buf)
   line(buf, "/// The handle C wrote into a slot from `slot`.")
   line(buf, "#borrow(slot)")
-  line(buf, "extern \"C\" fn \{slug}_read_slot(slot : Bytes) -> \{handle} = \"moonbind_read_slot\"")
+  line(
+    buf,
+    "extern \"C\" fn \{slug}_read_slot(slot : Bytes) -> \{handle} = \"moonbind_read_slot\"",
+  )
   blank(buf)
   line(buf, "/// Read back the pointer C stored in `slot`.")
   line(buf, "pub fn \{handle}::read_slot(slot : Bytes) -> \{handle} {")
   line(buf, "  \{slug}_read_slot(slot)")
   line(buf, "}")
   blank(buf)
-  line(buf, "extern \"C\" fn \{slug}_make_slot() -> Bytes = \"moonbind_make_slot\"")
+  line(
+    buf,
+    "extern \"C\" fn \{slug}_make_slot() -> Bytes = \"moonbind_make_slot\"",
+  )
   blank(buf)
 }
 
@@ -299,7 +331,10 @@ fn emit_handle(buf : StringBuilder, handle : String) -> Unit {
 /// | Emit one function, or record why it was left out.
 fn emit_function(buf : StringBuilder, gen : Gen, f : @ast.CFnDecl) -> Unit {
   if f.variadic {
-    gen.skips.push({ name: f.name, reason: "variadic, which MoonBit cannot call" })
+    gen.skips.push({
+      name: f.name,
+      reason: "variadic, which MoonBit cannot call",
+    })
     return
   }
   let ret = match gen.declare_type(f.ret, Returned) {
@@ -444,7 +479,7 @@ fn emit_const(
 ) -> Unit {
   let name = gen.claim_value(const_name(c_name))
   let (ty, literal) = if value >= -2147483648L && value <= 2147483647L {
-    ("Int", value.to_string())
+    ("Int32", value.to_string())
   } else {
     ("Int64", value.to_string())
   }
@@ -508,7 +543,7 @@ pub fn generate(
       Ok(_) => emit_mirror(types, gen, tag)
       Err(reason) => {
         emit_opaque(types, gen, tag)
-        gen.refusals.push({ name: tag, reason: refusal_text(reason) })
+        gen.refusals.push({ name: tag, reason: refusal_text(reason), })
       }
     }
   }

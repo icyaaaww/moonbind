@@ -13,7 +13,11 @@ fn main {
   // `@env.args()` is the raw C `argv`, so its first element is the program
   // itself. `parse_args` sees only what the user typed.
   let argv = @env.args()
-  let args : Array[String] = if argv.length() > 0 { argv[1:].to_owned() } else { [] }
+  let args : Array[String] = if argv.length() > 0 {
+    argv[1:].to_owned()
+  } else {
+    []
+  }
   let code = drive(args)
   if code != 0 {
     @sys.exit(code)
@@ -22,7 +26,7 @@ fn main {
 
 ///|
 /// | Parse, run, report. Returns the status.
-fn drive(argv : Array[String]) -> Int {
+fn drive(argv : Array[String]) -> Int32 {
   let options = match @cli.parse_args(argv) {
     @cli.Help => {
       println(@cli.usage())
@@ -40,17 +44,17 @@ fn drive(argv : Array[String]) -> Int {
     }
     @cli.Run(options) => options
   }
-  let text = try {
-    @cli.run(options)
-  } catch {
+  let text = @cli.run(options) catch {
     @cli.Failed(message) => {
       eprintln("moonbind: " + message)
       return 1
     }
   }
+  // `--verify` produces a table to read, not a package to write, so it prints
+  // whether or not `--out` was given.
   match options.out {
     None => println(text)
-    Some(_) => ()
+    Some(_) => if options.verify { println(text) }
   }
   0
 }

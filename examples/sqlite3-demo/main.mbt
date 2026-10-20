@@ -21,7 +21,7 @@ let select_sql : String = "SELECT name, craters FROM moons ORDER BY craters DESC
 /// the calling half.
 struct Moon {
   name : String
-  craters : Int
+  craters : Int32
 }
 
 ///|
@@ -38,13 +38,15 @@ fn Moon::show(self : Moon) -> Unit {
 /// `SQLITE_DONE`. Anything else is a failure.
 fn check(
   db : @sqlite.Sqlite3Ptr,
-  status : Int,
-  wanted : Int,
+  status : Int32,
+  wanted : Int32,
   doing : String,
 ) -> Unit raise {
   if status != wanted {
     let message = @sqlite.sqlite3_errmsg(db)
-    raise Failure("\{doing} failed: " + @utf8.decode(@sqlite.copy_cstr(message)))
+    raise Failure(
+      "\{doing} failed: " + @utf8.decode(@sqlite.copy_cstr(message)),
+    )
   }
 }
 
@@ -59,18 +61,61 @@ fn main {
   }
   try {
     // 1. A schema, executed as a whole statement.
-    check(db, @sqlite.sqlite3_exec(db, @utf8.encode(setup_sql), @sqlite.VoidPtr::null(), @sqlite.VoidPtr::null(), b""), @sqlite.sqlite_ok, "creating the table")
+    check(
+      db,
+      @sqlite.sqlite3_exec(
+        db,
+        @utf8.encode(setup_sql),
+        @sqlite.VoidPtr::null(),
+        @sqlite.VoidPtr::null(),
+        b"",
+      ),
+      @sqlite.sqlite_ok,
+      "creating the table",
+    )
 
     // 2. Two inserts through a prepared statement. The `?` placeholders are
     //    bound by position, and `sqlite3_reset` makes the statement reusable.
     let stmt_slot = @sqlite.Sqlite3StmtPtr::slot()
-    check(db, @sqlite.sqlite3_prepare_v2(db, @utf8.encode(insert_sql), -1, stmt_slot, b""), @sqlite.sqlite_ok, "preparing the insert")
+    check(
+      db,
+      @sqlite.sqlite3_prepare_v2(
+        db,
+        @utf8.encode(insert_sql),
+        -1,
+        stmt_slot,
+        b"",
+      ),
+      @sqlite.sqlite_ok,
+      "preparing the insert",
+    )
     let insert = @sqlite.Sqlite3StmtPtr::read_slot(stmt_slot)
     for row in [("Tycho", 5), ("Copernicus", 3), ("Kepler", 2)] {
       let (name, craters) = row
-      check(db, @sqlite.sqlite3_bind_text(insert, 1, @utf8.encode(name), -1, @sqlite.VoidPtr::null()), @sqlite.sqlite_ok, "binding a name")
-      check(db, @sqlite.sqlite3_bind_int(insert, 2, craters), @sqlite.sqlite_ok, "binding a count")
-      check(db, @sqlite.sqlite3_step(insert), @sqlite.sqlite_done, "inserting \{name}")
+      check(
+        db,
+        @sqlite.sqlite3_bind_text(
+          insert,
+          1,
+          @utf8.encode(name),
+          -1,
+          @sqlite.VoidPtr::null(),
+        ),
+        @sqlite.sqlite_ok,
+        "binding a name",
+      )
+      check(
+        db,
+        @sqlite.sqlite3_bind_int(insert, 2, craters),
+        @sqlite.sqlite_ok,
+        "binding a count",
+      )
+      check(
+        db,
+        @sqlite.sqlite3_step(insert),
+        @sqlite.sqlite_done,
+        "inserting \{name}",
+      )
       ignore(@sqlite.sqlite3_reset(insert))
     }
     ignore(@sqlite.sqlite3_finalize(insert))
@@ -79,19 +124,37 @@ fn main {
     //    SQLITE_DONE at the end, which is the whole cursor protocol.
     println("craters by size:")
     let query_slot = @sqlite.Sqlite3StmtPtr::slot()
-    check(db, @sqlite.sqlite3_prepare_v2(db, @utf8.encode(select_sql), -1, query_slot, b""), @sqlite.sqlite_ok, "preparing the query")
+    check(
+      db,
+      @sqlite.sqlite3_prepare_v2(
+        db,
+        @utf8.encode(select_sql),
+        -1,
+        query_slot,
+        b"",
+      ),
+      @sqlite.sqlite_ok,
+      "preparing the query",
+    )
     let query = @sqlite.Sqlite3StmtPtr::read_slot(query_slot)
     let mut rows = 0
     while @sqlite.sqlite3_step(query) == @sqlite.sqlite_row {
-      let name = @utf8.decode(@sqlite.copy_cstr(@sqlite.sqlite3_column_text(query, 0)))
+      let name = @utf8.decode(
+        @sqlite.copy_cstr(@sqlite.sqlite3_column_text(query, 0)),
+      )
       let craters = @sqlite.sqlite3_column_int(query, 1)
-      { name, craters }.show()
+      { name, craters, }.show()
       rows = rows + 1
     }
     ignore(@sqlite.sqlite3_finalize(query))
     println("\{rows} rows")
 
-    check(db, @sqlite.sqlite3_close(db), @sqlite.sqlite_ok, "closing the database")
+    check(
+      db,
+      @sqlite.sqlite3_close(db),
+      @sqlite.sqlite_ok,
+      "closing the database",
+    )
   } catch {
     err => {
       println(err.to_string())

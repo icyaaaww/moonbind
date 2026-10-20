@@ -14,16 +14,48 @@
 /// | MoonBit keywords and reserved words that cannot appear as a declared
 /// | name. A C identifier that is one of these gets a trailing underscore.
 let moonbit_keywords : Map[String, Bool] = Map::from_array([
-  ("fn", true), ("let", true), ("mut", true), ("if", true), ("else", true),
-  ("match", true), ("for", true), ("while", true), ("in", true), ("is", true),
-  ("true", true), ("false", true), ("return", true), ("break", true),
-  ("continue", true), ("pub", true), ("priv", true), ("struct", true),
-  ("enum", true), ("trait", true), ("impl", true), ("test", true),
-  ("extern", true), ("import", true), ("as", true), ("self", true), ("error", true),
-  ("type", true), ("suberror", true), ("const", true), ("guard", true),
-  ("async", true), ("init", true), ("main", true), ("with", true),
-  ("module", true), ("open", true), ("using", true), ("derive", true),
-  ("extend", true), ("typealias", true), ("_", true),
+  ("fn", true),
+  ("let", true),
+  ("mut", true),
+  ("if", true),
+  ("else", true),
+  ("match", true),
+  ("for", true),
+  ("while", true),
+  ("in", true),
+  ("is", true),
+  ("true", true),
+  ("false", true),
+  ("return", true),
+  ("break", true),
+  ("continue", true),
+  ("pub", true),
+  ("priv", true),
+  ("struct", true),
+  ("enum", true),
+  ("trait", true),
+  ("impl", true),
+  ("test", true),
+  ("extern", true),
+  ("import", true),
+  ("as", true),
+  ("self", true),
+  ("error", true),
+  ("type", true),
+  ("suberror", true),
+  ("const", true),
+  ("guard", true),
+  ("async", true),
+  ("init", true),
+  ("main", true),
+  ("with", true),
+  ("module", true),
+  ("open", true),
+  ("using", true),
+  ("derive", true),
+  ("extend", true),
+  ("typealias", true),
+  ("_", true),
 ])
 
 ///|
@@ -93,7 +125,8 @@ pub fn field_name(name : String) -> String {
   // MoonBit decides from the first letter whether a token is a name or a
   // type, and `iColumn` is a legal C member but starts upper case. Lowercase
   // it so the declaration parses; the rest of the spelling survives.
-  if n.length() > 0 && n.substring(start=0, end=1).to_lower() != n.substring(start=0, end=1) {
+  if n.length() > 0 &&
+    n.substring(start=0, end=1).to_lower() != n.substring(start=0, end=1) {
     n = n.substring(start=0, end=1).to_lower() + n.substring(start=1)
   }
   // MoonBit identifiers may start with an underscore in a field position, but
@@ -110,7 +143,7 @@ pub fn field_name(name : String) -> String {
 ///|
 /// | A parameter name. The same rules as a field, but a missing name (legal in
 /// | a prototype) becomes `arg<n>`.
-pub fn param_name(name : String, index : Int) -> String {
+pub fn param_name(name : String, index : Int32) -> String {
   if name.is_empty() {
     "arg\{index}"
   } else {

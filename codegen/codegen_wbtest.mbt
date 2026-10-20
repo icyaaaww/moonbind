@@ -39,22 +39,22 @@ fn ptr_(t : @ast.CType) -> @ast.CType {
 
 ///|
 fn field(name : String, ty : @ast.CType) -> @ast.CField {
-  { name, ty, bit_width: None, anonymous: false, align: None }
+  { name, ty, bit_width: None, anonymous: false, align: None, }
 }
 
 ///|
 fn bitfield(name : String, ty : @ast.CType, width : Int32) -> @ast.CField {
-  { name, ty, bit_width: Some(width), anonymous: false, align: None }
+  { name, ty, bit_width: Some(width), anonymous: false, align: None, }
 }
 
 ///|
 fn struct_of(tag : String, fields : Array[@ast.CField]) -> @ast.CRecordDecl {
-  { tag, kind: @ast.Struct, fields, complete: true, pack: None, align: None }
+  { tag, kind: @ast.Struct, fields, complete: true, pack: None, align: None, }
 }
 
 ///|
 fn union_of(tag : String, fields : Array[@ast.CField]) -> @ast.CRecordDecl {
-  { tag, kind: @ast.Union, fields, complete: true, pack: None, align: None }
+  { tag, kind: @ast.Union, fields, complete: true, pack: None, align: None, }
 }
 
 ///|
@@ -68,7 +68,7 @@ fn module_of(records : Array[@ast.CRecordDecl]) -> @ast.CModule {
 
 ///|
 fn param(name : String, ty : @ast.CType) -> @ast.CParam {
-  { name, ty }
+  { name, ty, }
 }
 
 ///|
@@ -77,7 +77,7 @@ fn foreign(
   ret : @ast.CType,
   params : Array[@ast.CParam],
 ) -> @ast.CFnDecl {
-  { name, ret, params, variadic: false, internal: false }
+  { name, ret, params, variadic: false, internal: false, }
 }
 
 ///|
@@ -137,8 +137,8 @@ test "integer kinds map to the nearest MoonBit scalar" {
   assert_eq(int_type(@ast.CU8), "Byte")
   assert_eq(int_type(@ast.CI16), "Int16")
   assert_eq(int_type(@ast.CU16), "UInt16")
-  assert_eq(int_type(@ast.CI32), "Int")
-  assert_eq(int_type(@ast.CU32), "UInt")
+  assert_eq(int_type(@ast.CI32), "Int32")
+  assert_eq(int_type(@ast.CU32), "UInt32")
   assert_eq(int_type(@ast.CI64), "Int64")
   assert_eq(int_type(@ast.CU64), "UInt64")
 }
@@ -155,13 +155,13 @@ test "a char pointer is Bytes on the way in and opaque on the way out" {
 ///|
 test "type aliases are followed to the real type" {
   let m = @ast.CModule::new()
-  m.add_typedef({ name: "sqlite3", ty: @ast.Record("sqlite3") })
-  m.add_typedef({ name: "sqlite3_int64", ty: i64_() })
+  m.add_typedef({ name: "sqlite3", ty: @ast.Record("sqlite3"), })
+  m.add_typedef({ name: "sqlite3_int64", ty: i64_(), })
   assert_eq(moon_type(m, @ast.Named("sqlite3_int64"), Value), "Int64")
   assert_eq(moon_type(m, ptr_(@ast.Named("sqlite3")), Value), "Sqlite3Ptr")
   // An alias to a pointer keeps the alias as the handle name, so a reader can
   // find the declaration behind `sqlite3_mutex *`.
-  m.add_typedef({ name: "sqlite3_mutex_ptr", ty: ptr_(@ast.Void) })
+  m.add_typedef({ name: "sqlite3_mutex_ptr", ty: ptr_(@ast.Void), })
   assert_eq(moon_type(m, @ast.Named("sqlite3_mutex_ptr"), Value), "VoidPtr")
 }
 
@@ -183,6 +183,7 @@ test "slot sizes follow the native backend" {
   assert_eq(slot_size("Byte"), 4)
   assert_eq(slot_size("Int16"), 4)
   assert_eq(slot_size("Int"), 4)
+  assert_eq(slot_size("Int32"), 4)
   assert_eq(slot_size("Int64"), 8)
   assert_eq(slot_size("Double"), 8)
   assert_eq(slot_size("StmtPtr"), 8)
@@ -214,10 +215,12 @@ test "a record the two languages lay out differently is refused" {
   let m = module_of([
     struct_of("Bad", [field("a", u8_()), field("b", u8_()), field("c", i32_())]),
   ])
-  assert_true(match mirror_record(target(), m, "Bad") {
-    Err(LayoutMismatch(_)) => true
-    _ => false
-  })
+  assert_true(
+    match mirror_record(target(), m, "Bad") {
+      Err(LayoutMismatch(_)) => true
+      _ => false
+    },
+  )
 }
 
 ///|
@@ -228,14 +231,18 @@ test "a union and a bitfield are refused for reasons, not by accident" {
     struct_of("P", [field("p", ptr_(@ast.Void)), field("n", i32_())]),
   ])
   assert_eq(mirror_record(target(), m, "U"), Err(IsUnion))
-  assert_true(match mirror_record(target(), m, "B") {
-    Err(Unrepresentable(_)) => true
-    _ => false
-  })
-  assert_true(match mirror_record(target(), m, "P") {
-    Err(Unrepresentable(_)) => true
-    _ => false
-  })
+  assert_true(
+    match mirror_record(target(), m, "B") {
+      Err(Unrepresentable(_)) => true
+      _ => false
+    },
+  )
+  assert_true(
+    match mirror_record(target(), m, "P") {
+      Err(Unrepresentable(_)) => true
+      _ => false
+    },
+  )
 }
 
 ///|
@@ -271,7 +278,9 @@ test "an opaque record becomes an extern type with the reason in its doc" {
 
 ///|
 test "a mirrorable record becomes a struct with the header's field names" {
-  let m = module_of([struct_of("Pair", [field("a", i64_()), field("b", i64_())])])
+  let m = module_of([
+    struct_of("Pair", [field("a", i64_()), field("b", i64_())]),
+  ])
   let (out, _) = generate(m, target())
   assert_true(has(out, "pub(all) struct Pair {"))
   assert_true(has(out, "  a : Int64"))
@@ -280,26 +289,38 @@ test "a mirrorable record becomes a struct with the header's field names" {
 
 ///|
 test "every non-scalar parameter is borrowed, and scalars are not" {
-  let m = module_of([struct_of("Pair", [field("a", i64_()), field("b", i64_())])])
-  m.add_function(foreign("take", i32_(), [
-    param("p", ptr_(@ast.Void)),
-    param("s", ptr_(u8_())),
-    param("n", i32_()),
-    param("pair", @ast.Record("Pair")),
-  ]))
+  let m = module_of([
+    struct_of("Pair", [field("a", i64_()), field("b", i64_())]),
+  ])
+  m.add_function(
+    foreign("take", i32_(), [
+      param("p", ptr_(@ast.Void)),
+      param("s", ptr_(u8_())),
+      param("n", i32_()),
+      param("pair", @ast.Record("Pair")),
+    ]),
+  )
   let (out, _) = generate(m, target())
   // `Bytes` is a pointer at runtime, so the compiler demands a borrow for it
   // as well; `n` crosses in a register and must not be listed.
   assert_true(has(out, "#borrow(p, s, pair)"))
-  assert_true(has(out, "pub extern \"C\" fn take(p : VoidPtr, s : Bytes, n : Int, pair : Pair) -> Int = \"take\""))
+  assert_true(
+    has(
+      out, "pub extern \"C\" fn take(p : VoidPtr, s : Bytes, n : Int32, pair : Pair) -> Int32 = \"take\"",
+    ),
+  )
 }
 
 ///|
 test "a function with only scalars carries no borrow attribute" {
   let m = @ast.CModule::new()
-  m.add_function(foreign("add", i32_(), [param("a", i32_()), param("b", i32_())]))
+  m.add_function(
+    foreign("add", i32_(), [param("a", i32_()), param("b", i32_())]),
+  )
   let (out, _) = generate(m, target())
-  assert_true(has(out, "pub extern \"C\" fn add(a : Int, b : Int) -> Int = \"add\""))
+  assert_true(
+    has(out, "pub extern \"C\" fn add(a : Int32, b : Int32) -> Int32 = \"add\""),
+  )
   assert_false(has(out, "#borrow"))
 }
 
@@ -331,7 +352,13 @@ test "a by-value parameter that cannot be mirrored is refused with a reason" {
 test "a variadic function is left out rather than emitted wrongly" {
   let m = @ast.CModule::new()
   let f = foreign("printf", i32_(), [param("fmt", ptr_(u8_()))])
-  m.add_function({ name: f.name, ret: f.ret, params: f.params, variadic: true, internal: f.internal })
+  m.add_function({
+    name: f.name,
+    ret: f.ret,
+    params: f.params,
+    variadic: true,
+    internal: f.internal,
+  })
   let (out, skips) = generate(m, target())
   assert_false(has(out, "printf("))
   assert_eq(skips.length(), 1)
@@ -343,14 +370,21 @@ test "enumerators and macros become lower-case integer constants" {
   let m = @ast.CModule::new()
   m.define_enum({
     tag: "e",
-    items: [{ name: "SQLITE_OK", value: 0L }, { name: "SQLITE_ROW", value: 100L }],
+    items: [
+      { name: "SQLITE_OK", value: 0L, },
+      { name: "SQLITE_ROW", value: 100L, },
+    ],
     complete: true,
   })
-  m.constants.push({ name: "SQLITE_VERSION_NUMBER", ty: i32_(), value: 3045000L })
+  m.constants.push({
+    name: "SQLITE_VERSION_NUMBER",
+    ty: i32_(),
+    value: 3045000L,
+  })
   let (out, _) = generate(m, target())
-  assert_true(has(out, "pub let sqlite_ok : Int = 0"))
-  assert_true(has(out, "pub let sqlite_row : Int = 100"))
-  assert_true(has(out, "pub let sqlite_version_number : Int = 3045000"))
+  assert_true(has(out, "pub let sqlite_ok : Int32 = 0"))
+  assert_true(has(out, "pub let sqlite_row : Int32 = 100"))
+  assert_true(has(out, "pub let sqlite_version_number : Int32 = 3045000"))
   // The C spelling stays visible so the header can be searched for it.
   assert_true(has(out, "/// C: SQLITE_OK = 0"))
 }
@@ -358,7 +392,7 @@ test "enumerators and macros become lower-case integer constants" {
 ///|
 test "a value too wide for Int is emitted as Int64" {
   let m = @ast.CModule::new()
-  m.constants.push({ name: "BIG", ty: i64_(), value: 4294967296L })
+  m.constants.push({ name: "BIG", ty: i64_(), value: 4294967296L, })
   let (out, _) = generate(m, target())
   assert_true(has(out, "pub let big : Int64 = 4294967296"))
 }
@@ -366,8 +400,8 @@ test "a value too wide for Int is emitted as Int64" {
 ///|
 test "a scalar typedef becomes an alias, a record typedef does not" {
   let m = @ast.CModule::new()
-  m.add_typedef({ name: "sqlite3_int64", ty: i64_() })
-  m.add_typedef({ name: "sqlite3", ty: @ast.Record("sqlite3") })
+  m.add_typedef({ name: "sqlite3_int64", ty: i64_(), })
+  m.add_typedef({ name: "sqlite3", ty: @ast.Record("sqlite3"), })
   m.forward_record(@ast.Struct, "struct sqlite3")
   let (out, _) = generate(m, target())
   assert_true(has(out, "pub type Sqlite3Int64 = Int64"))

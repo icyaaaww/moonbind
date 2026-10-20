@@ -18,10 +18,16 @@ pub fn run(options : Options) -> String raise RunError {
     defines: options.defines,
     platform: platform_for(options.target),
   }
-  let parsed = try {
-    @cparse.load_header(options.header, load_options)
-  } catch {
-    @cp.Failed(err) => raise Failed("could not read " + options.header + ": " + err)
+  let parsed = @cparse.load_header(options.header, load_options) catch {
+    @cp.Failed(err) =>
+      raise Failed("could not read " + options.header + ": " + err)
+  }
+  // `--verify` answers a different question — where the compiler will put each
+  // field — so it neither generates bindings nor writes a package. It prints
+  // the table the layout engine believes, which CI diffs against one produced
+  // by clang on the same header.
+  if options.verify {
+    return @layout.layout_table(options.target, parsed)
   }
   let (text, skips) = @codegen.generate(parsed, options.target)
   if options.report {

@@ -32,5 +32,16 @@ jobs:
       - name: Test
         run: moon test --target wasm-gc
 
+      - name: Check the layout table against clang
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang
+          bash scripts/verify-layout.sh
+
       - name: Format
-        run: moon fmt --check
+        # The examples are left out: their `moon.pkg` must keep the
+        # `"supported-targets"` option, which is the only spelling the
+        # compiler accepts, and `moon fmt` would rewrite it into a top-level
+        # `supported_targets` key that the same compiler then rejects.
+        run: |
+          moon fmt --check ast cli cmd codegen cp cparse layout lex source

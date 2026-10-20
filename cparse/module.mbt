@@ -27,8 +27,7 @@ pub fn parse_module_with_defines(
   for pair in defines {
     let (name, text) = pair
     match integer_value(text) {
-      Some(v) =>
-        env[name] = v
+      Some(v) => env[name] = v
       None => ()
     }
   }
@@ -63,11 +62,7 @@ pub fn parse_module_with_defines(
     match integer_value(text) {
       Some(v) => {
         published[name] = true
-        module.constants.push({
-          name,
-          ty: @ast.Int(@ast.CI32),
-          value: v,
-        })
+        module.constants.push({ name, ty: @ast.Int(@ast.CI32), value: v, })
       }
       None => ()
     }
