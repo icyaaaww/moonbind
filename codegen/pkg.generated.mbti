@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "icyaaaww/moonbind/codegen"
+
+import {
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/layout",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn const_name(String) -> String
+
+pub fn field_name(String) -> String
+
+pub fn float_type(@ast.CFloatKind) -> String
+
+pub fn function_name(String) -> String
+
+pub fn generate(@ast.CModule, @layout.Target) -> (String, Array[Skip])
+
+pub fn handle_name(@ast.CModule, @ast.CType) -> String
+
+pub fn int_type(@ast.CIntKind) -> String
+
+pub fn is_mirrorable(@layout.Target, @ast.CModule, String) -> Bool
+
+pub fn is_moonbit_keyword(String) -> Bool
+
+pub fn mirror_record(@layout.Target, @ast.CModule, String) -> Result[Unit, MirrorRefusal]
+
+pub fn moon_type(@ast.CModule, @ast.CType, Position) -> String
+
+pub fn opaque_name(String) -> String
+
+pub fn package_manifest() -> String
+
+pub fn param_name(String, Int32) -> String
+
+pub fn slot_size(String) -> Int32
+
+pub fn strings_source() -> String
+
+pub fn strip_typedefs(@ast.CModule, @ast.CType) -> @ast.CType
+
+pub fn stub_source() -> String
+
+pub fn type_name(String) -> String
+
+pub let void_ptr_name : String
+
+// Errors
+
+// Types and methods
+type Gen
+
+pub(all) enum MirrorRefusal {
+  Incomplete
+  IsUnion
+  Unrepresentable(String)
+  LayoutMismatch(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Position {
+  Value
+  Returned
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Skip {
+  name : String
+  reason : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

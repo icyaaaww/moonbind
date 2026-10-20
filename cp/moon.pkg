@@ -1,5 +1,5 @@
 import {
-  "moonbind-dev/moonbind/ast",
-  "moonbind-dev/moonbind/lex",
-  "moonbind-dev/moonbind/source",
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/lex",
+  "icyaaaww/moonbind/source",
 }

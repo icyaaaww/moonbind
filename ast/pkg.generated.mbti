@@ -1,5 +1,5 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbind-dev/moonbind/ast"
+package "icyaaaww/moonbind/ast"
 
 import {
   "moonbitlang/core/debug",

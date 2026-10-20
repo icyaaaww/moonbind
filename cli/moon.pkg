@@ -1,9 +1,9 @@
 import {
-  "moonbind-dev/moonbind/ast",
-  "moonbind-dev/moonbind/codegen",
-  "moonbind-dev/moonbind/cp",
-  "moonbind-dev/moonbind/cparse",
-  "moonbind-dev/moonbind/layout",
-  "moonbind-dev/moonbind/source",
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/codegen",
+  "icyaaaww/moonbind/cp",
+  "icyaaaww/moonbind/cparse",
+  "icyaaaww/moonbind/layout",
+  "icyaaaww/moonbind/source",
   "moonbitlang/x/fs",
 }

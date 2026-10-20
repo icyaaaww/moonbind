@@ -1,5 +1,5 @@
 import {
-  "moonbind-dev/moonbind/cli",
+  "icyaaaww/moonbind/cli",
   "moonbitlang/core/env",
   "moonbitlang/x/sys",
 }

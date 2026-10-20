@@ -1,9 +1,9 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbind-dev/moonbind/cp"
+package "icyaaaww/moonbind/cp"
 
 import {
-  "moonbind-dev/moonbind/lex",
-  "moonbind-dev/moonbind/source",
+  "icyaaaww/moonbind/lex",
+  "icyaaaww/moonbind/source",
   "moonbitlang/core/debug",
 }
 

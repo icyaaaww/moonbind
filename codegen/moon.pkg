@@ -1,4 +1,4 @@
 import {
-  "moonbind-dev/moonbind/ast",
-  "moonbind-dev/moonbind/layout",
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/layout",
 }

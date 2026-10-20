@@ -3,12 +3,14 @@
 // Target: x86_64 SysV (64-bit pointers)
 // Source: examples/greet/greet.h
 
+///|
 /// C: struct greet_ctx
 ///
 /// Opaque: the definition is not in this translation unit
 #external
 pub type GreetCtx
 
+///|
 /// C: struct greet_point
 ///
 /// Same size and field offsets as the C type. This is a MoonBit value, not
@@ -19,27 +21,33 @@ pub(all) struct GreetPoint {
   y : Int32
 }
 
+///|
 /// Opaque C pointer. Compare with `is_null` before using it.
 #external
 pub type VoidPtr
 
+///|
 /// True when this handle is C's NULL.
 #borrow(p)
 extern "C" fn voidptr_is_null(p : VoidPtr) -> Int32 = "moonbind_is_null"
 
+///|
 /// The NULL value for this handle.
 extern "C" fn voidptr_null() -> VoidPtr = "moonbind_null"
 
+///|
 /// Whether this handle is C's NULL.
 pub fn VoidPtr::is_null(self : VoidPtr) -> Bool {
   voidptr_is_null(self) != 0
 }
 
+///|
 /// C's NULL, spelled as this handle's type.
 pub fn VoidPtr::null() -> VoidPtr {
   voidptr_null()
 }
 
+///|
 /// An empty slot for a C out-parameter, i.e. a `T **`.
 ///
 /// Pass it where the header asks for `T **`, then read the result back
@@ -49,38 +57,47 @@ pub fn VoidPtr::slot() -> Bytes {
   voidptr_make_slot()
 }
 
+///|
 /// The handle C wrote into a slot from `slot`.
 #borrow(slot)
 extern "C" fn voidptr_read_slot(slot : Bytes) -> VoidPtr = "moonbind_read_slot"
 
+///|
 /// Read back the pointer C stored in `slot`.
 pub fn VoidPtr::read_slot(slot : Bytes) -> VoidPtr {
   voidptr_read_slot(slot)
 }
 
+///|
 extern "C" fn voidptr_make_slot() -> Bytes = "moonbind_make_slot"
 
+///|
 /// Opaque C pointer. Compare with `is_null` before using it.
 #external
 pub type GreetCtxPtr
 
+///|
 /// True when this handle is C's NULL.
 #borrow(p)
 extern "C" fn greetctxptr_is_null(p : GreetCtxPtr) -> Int32 = "moonbind_is_null"
 
+///|
 /// The NULL value for this handle.
 extern "C" fn greetctxptr_null() -> GreetCtxPtr = "moonbind_null"
 
+///|
 /// Whether this handle is C's NULL.
 pub fn GreetCtxPtr::is_null(self : GreetCtxPtr) -> Bool {
   greetctxptr_is_null(self) != 0
 }
 
+///|
 /// C's NULL, spelled as this handle's type.
 pub fn GreetCtxPtr::null() -> GreetCtxPtr {
   greetctxptr_null()
 }
 
+///|
 /// An empty slot for a C out-parameter, i.e. a `T **`.
 ///
 /// Pass it where the header asks for `T **`, then read the result back
@@ -90,47 +107,68 @@ pub fn GreetCtxPtr::slot() -> Bytes {
   greetctxptr_make_slot()
 }
 
+///|
 /// The handle C wrote into a slot from `slot`.
 #borrow(slot)
 extern "C" fn greetctxptr_read_slot(slot : Bytes) -> GreetCtxPtr = "moonbind_read_slot"
 
+///|
 /// Read back the pointer C stored in `slot`.
 pub fn GreetCtxPtr::read_slot(slot : Bytes) -> GreetCtxPtr {
   greetctxptr_read_slot(slot)
 }
 
+///|
 extern "C" fn greetctxptr_make_slot() -> Bytes = "moonbind_make_slot"
 
+///|
 /// C: _LP64 = 1
 pub let lp64 : Int32 = 1
+
+///|
 /// C: __LP64__ = 1
 pub let lp64_2 : Int32 = 1
+
+///|
 /// C: __STDC__ = 1
 pub let stdc : Int32 = 1
+
+///|
 /// C: __amd64__ = 1
 pub let amd64 : Int32 = 1
+
+///|
 /// C: __x86_64__ = 1
 pub let x86_64 : Int32 = 1
+
+///|
 /// C: __MOONBIND__ = 1
 pub let moonbind : Int32 = 1
+
+///|
 /// C: __STDC_VERSION__ = 201112
 pub let stdc_version : Int32 = 201112
+
+///|
 /// C: greet_version(void)
 pub extern "C" fn greet_version() -> VoidPtr = "greet_version"
 
+///|
 /// C: greet_open(name: signed char *)
 #borrow(name)
 pub extern "C" fn greet_open(name : Bytes) -> GreetCtxPtr = "greet_open"
 
+///|
 /// C: greet_hello(ctx: greet_ctx *, who: signed char *)
 #borrow(ctx, who)
 pub extern "C" fn greet_hello(ctx : GreetCtxPtr, who : Bytes) -> Int32 = "greet_hello"
 
+///|
 /// C: greet_count(ctx: greet_ctx *)
 #borrow(ctx)
 pub extern "C" fn greet_count(ctx : GreetCtxPtr) -> Int32 = "greet_count"
 
+///|
 /// C: greet_close(ctx: greet_ctx *)
 #borrow(ctx)
 pub extern "C" fn greet_close(ctx : GreetCtxPtr) -> Unit = "greet_close"
-

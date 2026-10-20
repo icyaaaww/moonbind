@@ -1,8 +1,8 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbind-dev/moonbind/layout"
+package "icyaaaww/moonbind/layout"
 
 import {
-  "moonbind-dev/moonbind/ast",
+  "icyaaaww/moonbind/ast",
   "moonbitlang/core/debug",
 }
 
@@ -10,6 +10,10 @@ import {
 pub fn layout_module(Target, @ast.CModule) -> Map[String, RecordLayout]
 
 pub fn layout_record(Target, @ast.CModule, String) -> RecordLayout?
+
+pub fn layout_table(Target, @ast.CModule) -> String
+
+pub fn record_row(Target, @ast.CModule, String) -> String?
 
 pub fn size_of(Target, @ast.CModule, @ast.CType) -> (Int32, Int32)
 

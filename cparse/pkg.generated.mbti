@@ -1,11 +1,11 @@
 // Generated using `moon info`, DON'T EDIT IT
-package "moonbind-dev/moonbind/cparse"
+package "icyaaaww/moonbind/cparse"
 
 import {
-  "moonbind-dev/moonbind/ast",
-  "moonbind-dev/moonbind/cp",
-  "moonbind-dev/moonbind/lex",
-  "moonbind-dev/moonbind/source",
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/cp",
+  "icyaaaww/moonbind/lex",
+  "icyaaaww/moonbind/source",
 }
 
 // Values
@@ -30,7 +30,7 @@ type Cursor
 
 type Declarator
 
-pub struct LoadOptions {
+pub(all) struct LoadOptions {
   include_paths : Array[String]
   defines : Array[String]
   platform : @cp.Platform

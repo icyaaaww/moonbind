@@ -1,10 +1,8 @@
 import {
-  "moonbind-dev/moonbind/examples/greet" @greet,
+  "icyaaaww/moonbind/examples/greet",
   "moonbitlang/core/encoding/utf8",
 }
 
 pkgtype(kind: "executable")
 
-options(
-  "supported-targets": [ "native" ],
-)
+supported_targets = [ "native" ]

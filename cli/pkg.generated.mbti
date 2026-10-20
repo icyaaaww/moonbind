@@ -1,0 +1,50 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "icyaaaww/moonbind/cli"
+
+import {
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/codegen",
+  "icyaaaww/moonbind/cp",
+  "icyaaaww/moonbind/layout",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn parse_args(Array[String]) -> Args
+
+pub fn platform_for(@layout.Target) -> @cp.Platform
+
+pub fn run(Options) -> String raise RunError
+
+pub fn summary(@ast.CModule, Array[@codegen.Skip]) -> String
+
+pub fn usage() -> String
+
+pub let version : String
+
+// Errors
+pub(all) suberror RunError {
+  Failed(String)
+}
+
+// Types and methods
+pub(all) enum Args {
+  Help
+  Version
+  Run(Options)
+  Bad(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Options {
+  header : String
+  out : String?
+  target : @layout.Target
+  include_paths : Array[String]
+  defines : Array[String]
+  report : Bool
+  verify : Bool
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

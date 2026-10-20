@@ -209,6 +209,31 @@ union P9  0 c  0:0-19 a [sizeof=4, align=4]
 
 ## Building
 
+### Install the Mooncakes library
+
+The published module is `icyaaaww/moonbind@0.1.0`:
+
+```sh
+moon add icyaaaww/moonbind@0.1.0
+```
+
+Import the stage you need, for example `"icyaaaww/moonbind/layout"` or
+`"icyaaaww/moonbind/cparse"`, in your package's `moon.pkg`. Use the `wasm-gc`
+target for the generator and its filesystem-dependent stages. The module's
+root package has no generator API; the APIs live in the stage packages above.
+
+For the CLI, clone https://github.com/icyaaaww/moonbind and run:
+
+```sh
+moon run cmd/main --target wasm-gc -- --help
+moon run cmd/main --target wasm-gc -- testdata/layout/packed.h --verify
+```
+
+The abbreviated `moonbind` commands in this README refer to that CLI entry
+point; adding the library does not install a global `moonbind` executable.
+
+### Build from source
+
 MoonBit 0.1.20261016 or newer.
 
 ```sh
@@ -229,7 +254,7 @@ the demos are run with `--target native`.
 - [x] MoonBit code generation
 - [x] Command-line interface and runnable examples
 - [x] Differential verification against clang
-- [ ] Published to [mooncakes.io](https://mooncakes.io)
+- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.1.0
 - [ ] Struct returns by value, once the FFI can express them
 - [ ] `#define` function-like macros as MoonBit functions
 

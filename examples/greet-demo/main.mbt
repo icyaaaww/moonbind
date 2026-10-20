@@ -25,8 +25,12 @@ fn main raise {
     return
   }
 
-  println("greet_hello returned \{@greet.greet_hello(ctx, @utf8.encode("Tycho"))}")
-  println("greet_hello returned \{@greet.greet_hello(ctx, @utf8.encode("Kepler"))}")
+  println(
+    "greet_hello returned \{@greet.greet_hello(ctx, @utf8.encode("Tycho"))}",
+  )
+  println(
+    "greet_hello returned \{@greet.greet_hello(ctx, @utf8.encode("Kepler"))}",
+  )
 
   // `greet_count` takes the context and answers an `int`, which is `Int32`
   // here — the same 32 bits the header promised, not a MoonBit `Int` that
