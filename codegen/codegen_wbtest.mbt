@@ -109,6 +109,12 @@ test "field names are kept as written unless reserved" {
   // A capital first letter is a type token to the parser, so it is lowered.
   assert_eq(field_name("iColumn"), "iColumn")
   assert_eq(field_name("N"), "n")
+  // Reserved words that are not in use yet still break a declaration:
+  // `#borrow(where)` is a syntax error, and so is a parameter named `catch`.
+  assert_eq(field_name("where"), "where_")
+  assert_eq(field_name("catch"), "catch_")
+  assert_eq(field_name("loop"), "loop_")
+  assert_eq(field_name("do"), "do_")
 }
 
 ///|
@@ -289,26 +295,51 @@ test "a mirrorable record becomes a struct with the header's field names" {
 
 ///|
 test "every non-scalar parameter is borrowed, and scalars are not" {
-  let m = module_of([
-    struct_of("Pair", [field("a", i64_()), field("b", i64_())]),
-  ])
+  let m = @ast.CModule::new()
   m.add_function(
     foreign("take", i32_(), [
       param("p", ptr_(@ast.Void)),
       param("s", ptr_(u8_())),
       param("n", i32_()),
-      param("pair", @ast.Record("Pair")),
     ]),
   )
   let (out, _) = generate(m, target())
   // `Bytes` is a pointer at runtime, so the compiler demands a borrow for it
   // as well; `n` crosses in a register and must not be listed.
-  assert_true(has(out, "#borrow(p, s, pair)"))
+  assert_true(has(out, "#borrow(p, s)"))
   assert_true(
     has(
-      out, "pub extern \"C\" fn take(p : VoidPtr, s : Bytes, n : Int32, pair : Pair) -> Int32 = \"take\"",
+      out, "pub extern \"C\" fn take(p : VoidPtr, s : Bytes, n : Int32) -> Int32 = \"take\"",
     ),
   )
+}
+
+///|
+test "a mirrorable record passed by value is still refused" {
+  // The layouts agree, and it still cannot be handed to C: the FFI passes a
+  // record by reference, so the callee would read the first fields of a box.
+  let m = module_of([
+    struct_of("Pair", [field("a", i32_()), field("b", i32_())]),
+  ])
+  m.add_function(foreign("take", i32_(), [param("pair", @ast.Record("Pair"))]))
+  let (out, skips) = generate(m, target())
+  assert_true(has(out, "pub(all) struct Pair"))
+  assert_false(has(out, "fn take"))
+  assert_eq(skips.length(), 1)
+  assert_eq(skips[0].name, "take")
+  assert_true(skips[0].reason.contains("by reference"))
+}
+
+///|
+test "a mirrorable record returned by value is still refused" {
+  let m = module_of([
+    struct_of("Pair", [field("a", i32_()), field("b", i32_())]),
+  ])
+  m.add_function(foreign("make", @ast.Record("Pair"), []))
+  let (out, skips) = generate(m, target())
+  assert_false(has(out, "fn make"))
+  assert_eq(skips.length(), 1)
+  assert_true(skips[0].reason.contains("by reference"))
 }
 
 ///|
@@ -321,7 +352,9 @@ test "a function with only scalars carries no borrow attribute" {
   assert_true(
     has(out, "pub extern \"C\" fn add(a : Int32, b : Int32) -> Int32 = \"add\""),
   )
-  assert_false(has(out, "#borrow"))
+  // The package always declares `VoidPtr` for `strings.mbt`, and its helpers
+  // carry their own `#borrow`; what matters here is that `add` has none.
+  assert_false(has(out, "#borrow(a"))
 }
 
 ///|

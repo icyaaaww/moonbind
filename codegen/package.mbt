@@ -8,8 +8,16 @@
 ///|
 /// | The manifest for a generated package. The stub is compiled into every
 /// | binary that links the bindings, which is what makes `copy_cstr` work.
+///
+/// `supported-targets` is not optional. Every declaration the generator emits
+/// is `extern "C"`, and the wasm-gc backend rejects those outright (error
+/// 4156), so a manifest without the restriction turns `moon check` — which
+/// defaults to wasm — into eighteen errors about a package the tool just
+/// wrote. The spelling has to be the option form: `supported_targets` at the
+/// top level is rejected with error 4192 by the same compiler that prints the
+/// deprecation warning.
 pub fn package_manifest() -> String {
-  "options(\"native-stub\": [\"stub.c\"])\n"
+  "options(\n  \"native-stub\": [ \"stub.c\" ],\n  \"supported-targets\": [ \"native\" ],\n)\n"
 }
 
 ///|

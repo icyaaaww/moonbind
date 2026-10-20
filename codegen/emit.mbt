@@ -214,7 +214,13 @@ fn emit_mirror(buf : StringBuilder, gen : Gen, tag : String) -> Unit {
   }
   line(buf, "/// C: \{c_kind} \{tag}")
   line(buf, "///")
-  line(buf, "/// Laid out identically in C and MoonBit; safe to pass by value.")
+  line(
+    buf, "/// Same size and field offsets as the C type. This is a MoonBit value, not",
+  )
+  line(
+    buf, "/// a wire format: the FFI passes every record by reference, so functions",
+  )
+  line(buf, "/// taking or returning this struct by value are left out.")
   // `pub(all)` already makes every field public, and `derive(Debug)` would
   // generate an `impl` the compiler then wants written as a method, so the
   // struct is plain. Anyone who wants it printable can derive it themselves.
@@ -360,19 +366,19 @@ fn emit_function(buf : StringBuilder, gen : Gen, f : @ast.CFnDecl) -> Unit {
         return
       }
     }
-    // A struct or union by value must be mirrorable, or the call would hand C
-    // bytes the two languages disagree about.
+    // A struct or union by value is refused even when the layouts agree.
+    // Measured, not assumed: MoonBit passes every non-scalar by reference, so
+    // a C function expecting a struct in registers reads a pointer's low words
+    // instead. `struct {int x; int y;}` with x=3000, y=4000 reaches C as
+    // `0 -1` — the tag and length of a box. No MoonBit source spelling of the
+    // call fixes that, so the function is left out rather than emitted with a
+    // signature the two sides read differently.
     if strip_typedefs(gen.module, p.ty) is @ast.Record(tag) {
-      match mirror_record(gen.target, gen.module, tag) {
-        Ok(_) => ()
-        Err(reason) => {
-          gen.skips.push({
-            name: f.name,
-            reason: "parameter \{i} passes \{tag} by value, and \{refusal_text(reason)}",
-          })
-          return
-        }
-      }
+      gen.skips.push({
+        name: f.name,
+        reason: "parameter \{i} passes \{tag} by value, and MoonBit passes records by reference",
+      })
+      return
     }
     let pname = param_name(p.name, i)
     params.push((pname, ty))
@@ -382,17 +388,15 @@ fn emit_function(buf : StringBuilder, gen : Gen, f : @ast.CFnDecl) -> Unit {
       borrowed.push(pname)
     }
   }
+  // Same asymmetry on the way back: a MoonBit struct cannot hold what C
+  // returns in registers, so a record return is refused for the same reason as
+  // a record parameter, mirror or not.
   if strip_typedefs(gen.module, f.ret) is @ast.Record(tag) {
-    match mirror_record(gen.target, gen.module, tag) {
-      Ok(_) => ()
-      Err(reason) => {
-        gen.skips.push({
-          name: f.name,
-          reason: "returns \{tag} by value, and \{refusal_text(reason)}",
-        })
-        return
-      }
-    }
+    gen.skips.push({
+      name: f.name,
+      reason: "returns \{tag} by value, and MoonBit returns records by reference",
+    })
+    return
   }
   let name = gen.claim_value(function_name(f.name))
   line(buf, "/// C: \{moon_signature(f)}")
@@ -533,6 +537,11 @@ pub fn generate(
 ) -> (String, Array[Skip]) {
   let gen = Gen::new(target, module)
   claim_record_types(gen)
+  // `strings.mbt` is written into every generated package and its `copy_cstr`
+  // takes a `VoidPtr`, so that handle has to exist even when the header never
+  // mentions `void *`. Without this, a binding for a header with no pointer at
+  // all fails to compile on the one function the generator wrote itself.
+  ignore(gen.handle(void_ptr_name))
 
   let types = StringBuilder()
   let functions = StringBuilder()

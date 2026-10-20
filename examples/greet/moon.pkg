@@ -1,0 +1,4 @@
+options(
+  "native-stub": [ "stub.c", "greet.c" ],
+  "supported-targets": [ "native" ],
+)

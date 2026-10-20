@@ -55,6 +55,14 @@ let moonbit_keywords : Map[String, Bool] = Map::from_array([
   ("derive", true),
   ("extend", true),
   ("typealias", true),
+  // Reserved rather than in use: `do` is accepted today with a warning, and
+  // the warning says to rename. `loop`, `catch` and `where` are harder
+  // failures — a parameter of any of those names makes the declaration that
+  // uses it a syntax error, and `#borrow(where)` does not even parse.
+  ("do", true),
+  ("loop", true),
+  ("catch", true),
+  ("where", true),
   ("_", true),
 ])
 
