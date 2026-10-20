@@ -47,15 +47,28 @@ pub fn parse_module_with_defines(
   // used by name. The parser has no other place to record one, and the
   // preprocessor does not tell it the macro's type, so the narrowest type that
   // holds the value is used and the emitter decides how wide the literal is.
+  //
+  // A macro the header already spells as one of its enumerators is the same
+  // constant twice — `SQLITE_OK` is both an enum member and a `#define` — and
+  // publishing both would collide in the generated package.
+  let published : Map[String, Bool] = Map([])
+  for c in module.constants {
+    published[c.name] = true
+  }
   for pair in defines {
     let (name, text) = pair
+    if published.contains(name) {
+      continue
+    }
     match integer_value(text) {
-      Some(v) =>
+      Some(v) => {
+        published[name] = true
         module.constants.push({
           name,
           ty: @ast.Int(@ast.CI32),
           value: v,
         })
+      }
       None => ()
     }
   }
