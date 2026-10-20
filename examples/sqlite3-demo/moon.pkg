@@ -1,0 +1,8 @@
+import {
+  "moonbind-dev/moonbind/examples/sqlite3" @sqlite,
+  "moonbitlang/core/encoding/utf8" @utf8,
+}
+
+options("native-stub": ["sqlite3.c"])
+
+pkgtype(kind: "executable")

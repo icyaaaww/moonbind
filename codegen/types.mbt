@@ -30,13 +30,22 @@
 //!
 //! # Pointers
 //!
-//! Every pointer becomes an optional opaque handle named after what it points
-//! at, with a `Ptr` suffix so that a handle never collides with the mirror of
-//! the record it points at. `None` is C's `NULL`. A `char *` is the exception:
-//! it is how C spells a string or a buffer, and `Bytes` crosses the boundary as
-//! a plain data pointer, so a `char *` parameter is `Bytes`. A `char *` return
-//! cannot be `Bytes` — that memory does not belong to MoonBit — so it comes
-//! back as an opaque handle.
+//! Every pointer becomes an opaque handle named after what it points at, with
+//! a `Ptr` suffix so that a handle never collides with the mirror of the
+//! record it points at. A `char *` is the exception: it is how C spells a
+//! string or a buffer, and `Bytes` crosses the boundary as a plain data
+//! pointer, so a `char *` parameter is `Bytes`. A `char *` return cannot be
+//! `Bytes` — that memory does not belong to MoonBit — so it comes back as an
+//! opaque handle.
+//!
+//! A handle is a plain `#external` type, never an `Option`. That was measured:
+//! an `Option`-typed parameter arrives at C as a pointer to the boxed value,
+//! so `None` reaches the callee as some non-null address rather than as
+//! `NULL`, and a C `NULL` returned into `T?` is indistinguishable from a
+//! legitimate `Some`. A bare external type crosses as the address itself, so
+//! `NULL` survives in both directions. Nullable C pointers therefore carry
+//! their nullability at the call site — `handle.is_null()` and
+//! `Handle::null()` — rather than in the type.
 
 ///|
 /// | The name of the opaque type used for `void *` and for function pointers.
@@ -137,22 +146,35 @@ pub fn moon_type(
     @ast.EnumType(_) => "Int"
     // A function pointer cannot be called from MoonBit without a trampoline,
     // so it is carried as an opaque handle rather than pretending otherwise.
-    @ast.Fn(_) => void_ptr_name + "?"
+    @ast.Fn(_) => void_ptr_name
     @ast.Pointer(_) =>
       if points_at_char(module, ty) {
         match pos {
           Value => "Bytes"
-          Returned => void_ptr_name + "?"
+          Returned => void_ptr_name
         }
       } else {
         match strip_typedefs(module, ty) {
-          @ast.Pointer(inner) => handle_name(module, inner) + "?"
-          _ => void_ptr_name + "?"
+          @ast.Pointer(inner) =>
+            match strip_typedefs(module, inner) {
+              // A second level is an out-parameter: C writes a pointer through
+              // it and MoonBit never dereferences it. It crosses as a `Bytes`
+              // slot of pointer size (`Handle::slot()`), which keeps the slot
+              // rooted in MoonBit while C writes it, and `Handle::read_slot`
+              // reads the value back afterwards.
+              @ast.Pointer(_) =>
+                match pos {
+                  Value => "Bytes"
+                  Returned => void_ptr_name
+                }
+              _ => handle_name(module, inner)
+            }
+          _ => void_ptr_name
         }
       }
     // An array only appears inside a record by value, which the mirror check
     // rejects; as a parameter it has decayed to a pointer before this point.
-    @ast.Array(_) => void_ptr_name + "?"
+    @ast.Array(_) => void_ptr_name
     @ast.Record(tag) => type_name(tag)
     // A name that reaches here is a typedef the parser has not expanded. Follow
     // it now: the spelling in the header says nothing about how the value

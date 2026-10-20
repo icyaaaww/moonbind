@@ -44,7 +44,7 @@ pub fn usage() -> String {
     "  moonbind <header.h> [options]",
     "",
     "Options:",
-    "  --out <path>        write the package to <path> instead of stdout",
+    "  --out <dir>         write a complete package into <dir>",
     "  --target <name>     x86_64 (default), aarch64, or wasm32",
     "  --include <dir>     add a directory to the include search path",
     "  --define <M=V>      define a macro before parsing",

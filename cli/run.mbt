@@ -31,14 +31,40 @@ pub fn run(options : Options) -> String raise RunError {
   }
   match options.out {
     None => ()
-    Some(path) =>
-      try {
-        @fs.write_string_to_file(path, text)
-      } catch {
-        @fs.IOError(err) => raise Failed("could not write " + path + ": " + err)
-      }
+    Some(dir) => write_package(dir, text)
   }
   text
+}
+
+///|
+/// | Write the four files a usable package is made of. They are written as a
+/// | set because a package that is missing its manifest will not build, and a
+/// | half-written package is a confusing thing to debug.
+fn write_package(dir : String, text : String) -> Unit raise RunError {
+  try {
+    make_dirs(dir)
+    @fs.write_string_to_file(dir + "/moon.pkg", @codegen.package_manifest())
+    @fs.write_string_to_file(dir + "/stub.c", @codegen.stub_source())
+    @fs.write_string_to_file(dir + "/strings.mbt", @codegen.strings_source())
+    @fs.write_string_to_file(dir + "/bindings.mbt", text)
+  } catch {
+    @fs.IOError(err) => raise Failed("could not write into " + dir + ": " + err)
+  }
+}
+
+///|
+/// | Create `dir` and every missing parent of it. `--out examples/sqlite3` is
+/// | the normal way to use this tool, and failing because `examples` does not
+/// | exist yet would be a poor first impression.
+fn make_dirs(dir : String) -> Unit raise @fs.IOError {
+  if @fs.path_exists(dir) {
+    return
+  }
+  let parent = @source.dir_name(dir)
+  if parent != "" && parent != dir && parent != "." && !@fs.path_exists(parent) {
+    make_dirs(parent)
+  }
+  @fs.create_dir(dir)
 }
 
 ///|

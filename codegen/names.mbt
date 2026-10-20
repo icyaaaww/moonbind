@@ -90,6 +90,12 @@ pub fn field_name(name : String) -> String {
   if n.is_empty() {
     n = "unnamed"
   }
+  // MoonBit decides from the first letter whether a token is a name or a
+  // type, and `iColumn` is a legal C member but starts upper case. Lowercase
+  // it so the declaration parses; the rest of the spelling survives.
+  if n.length() > 0 && n.substring(start=0, end=1).to_lower() != n.substring(start=0, end=1) {
+    n = n.substring(start=0, end=1).to_lower() + n.substring(start=1)
+  }
   // MoonBit identifiers may start with an underscore in a field position, but
   // a bare `_` is the wildcard and is not an identifier.
   if n == "_" {

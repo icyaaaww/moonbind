@@ -27,7 +27,8 @@ pub fn parse_module_with_defines(
   for pair in defines {
     let (name, text) = pair
     match integer_value(text) {
-      Some(v) => env[name] = v
+      Some(v) =>
+        env[name] = v
       None => ()
     }
   }
@@ -42,6 +43,22 @@ pub fn parse_module_with_defines(
   }
   cur.run_unit()
   module.resolve_all()
+  // A `#define` with an integer body is a constant the header meant to be
+  // used by name. The parser has no other place to record one, and the
+  // preprocessor does not tell it the macro's type, so the narrowest type that
+  // holds the value is used and the emitter decides how wide the literal is.
+  for pair in defines {
+    let (name, text) = pair
+    match integer_value(text) {
+      Some(v) =>
+        module.constants.push({
+          name,
+          ty: @ast.Int(@ast.CI32),
+          value: v,
+        })
+      None => ()
+    }
+  }
   module
 }
 

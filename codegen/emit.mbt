@@ -5,7 +5,9 @@
 //!
 //! - a C record that can be mirrored becomes `pub(all) struct`;
 //! - any other record becomes an opaque `#external pub type`;
-//! - every pointer gets its own opaque handle type, named after its target;
+//! - every pointer gets its own opaque handle type, named after its target,
+//!   plus `Handle::null()` and `Handle::is_null()` so a NULL is never mistaken
+//!   for a live address;
 //! - every function keeps its C name on the MoonBit side;
 //! - every pointer-like, `Bytes` and by-value-struct parameter must be listed
 //!   in a `#borrow(...)` attribute or the package does not compile.
@@ -137,22 +139,19 @@ fn Gen::declare_type(
     "Float" | "Double" as scalar => Some(scalar)
     "Bytes" => Some("Bytes")
     text => {
-      // A trailing `?` marks a handle. Everything else is a named type the
-      // caller must already have declared, or a handle whose decl is missing.
-      if text.has_suffix("?") {
-        let base = text.substring(start=0, end=text.length() - 1)
-        // A record or enum already owns its name; a `Ptr` suffix cannot
-        // collide with it, so anything else is a handle to declare.
-        if self.used_types.contains(base) {
-          Some(base + "?")
-        } else {
-          Some(self.handle(base) + "?")
-        }
-      } else {
-        match self.used_types.get(text) {
-          Some(_) => Some(text)
-          None => None
-        }
+      // A name the generator already declared is used as it stands.
+      match self.used_types.get(text) {
+        Some(_) => Some(text)
+        // Every handle the type mapper invents ends in `Ptr`, and no other
+        // name it returns does. A name that is neither declared nor shaped
+        // like a handle is a type this generator does not understand, and the
+        // function using it is left out rather than guessed at.
+        None =>
+          if text.has_suffix("Ptr") {
+            Some(self.handle(text))
+          } else {
+            None
+          }
       }
     }
   }
@@ -197,12 +196,15 @@ fn emit_mirror(buf : StringBuilder, gen : Gen, tag : String) -> Unit {
   line(buf, "/// C: \{c_kind} \{tag}")
   line(buf, "///")
   line(buf, "/// Laid out identically in C and MoonBit; safe to pass by value.")
+  // `pub(all)` already makes every field public, and `derive(Debug)` would
+  // generate an `impl` the compiler then wants written as a method, so the
+  // struct is plain. Anyone who wants it printable can derive it themselves.
   line(buf, "pub(all) struct \{name} {")
   for field in decl.fields {
     let ty = moon_type(gen.module, field.ty, Value)
-    line(buf, "  pub \{field_name(field.name)} : \{ty}")
+    line(buf, "  \{field_name(field.name)} : \{ty}")
   }
-  line(buf, "} derive(Debug)")
+  line(buf, "}")
   blank(buf)
 }
 
@@ -238,6 +240,59 @@ fn refusal_text(reason : MirrorRefusal) -> String {
     Unrepresentable(why) => "no MoonBit representation: \{why}"
     LayoutMismatch(why) => "C and MoonBit disagree: \{why}"
   }
+}
+
+///|
+/// | Emit an opaque handle type and the two questions a caller has to be able
+/// | to ask about one: is this C's NULL, and how do I spell NULL myself.
+/// |
+/// | The type is a bare `#external` type rather than `Option[_]` because an
+/// | `Option` is a box at the FFI boundary: `None` reaches C as the address of
+/// | the box, and a C NULL coming back looks exactly like a box. A bare
+/// | external type crosses as the address, so NULL survives both ways.
+fn emit_handle(buf : StringBuilder, handle : String) -> Unit {
+  let slug = handle.to_lower()
+  line(buf, "/// Opaque C pointer. Compare with `is_null` before using it.")
+  line(buf, "#external")
+  line(buf, "pub type \{handle}")
+  blank(buf)
+  line(buf, "/// True when this handle is C's NULL.")
+  line(buf, "#borrow(p)")
+  line(buf, "extern \"C\" fn \{slug}_is_null(p : \{handle}) -> Int = \"moonbind_is_null\"")
+  blank(buf)
+  line(buf, "/// The NULL value for this handle.")
+  line(buf, "extern \"C\" fn \{slug}_null() -> \{handle} = \"moonbind_null\"")
+  blank(buf)
+  line(buf, "/// Whether this handle is C's NULL.")
+  line(buf, "pub fn \{handle}::is_null(self : \{handle}) -> Bool {")
+  line(buf, "  \{slug}_is_null(self) != 0")
+  line(buf, "}")
+  blank(buf)
+  line(buf, "/// C's NULL, spelled as this handle's type.")
+  line(buf, "pub fn \{handle}::null() -> \{handle} {")
+  line(buf, "  \{slug}_null()")
+  line(buf, "}")
+  blank(buf)
+  line(buf, "/// An empty slot for a C out-parameter, i.e. a `T **`.")
+  line(buf, "///")
+  line(buf, "/// Pass it where the header asks for `T **`, then read the result back")
+  line(buf, "/// with `read_slot`. The slot is rooted in MoonBit for the whole call, so")
+  line(buf, "/// nothing C writes through it can be collected.")
+  line(buf, "pub fn \{handle}::slot() -> Bytes {")
+  line(buf, "  \{slug}_make_slot()")
+  line(buf, "}")
+  blank(buf)
+  line(buf, "/// The handle C wrote into a slot from `slot`.")
+  line(buf, "#borrow(slot)")
+  line(buf, "extern \"C\" fn \{slug}_read_slot(slot : Bytes) -> \{handle} = \"moonbind_read_slot\"")
+  blank(buf)
+  line(buf, "/// Read back the pointer C stored in `slot`.")
+  line(buf, "pub fn \{handle}::read_slot(slot : Bytes) -> \{handle} {")
+  line(buf, "  \{slug}_read_slot(slot)")
+  line(buf, "}")
+  blank(buf)
+  line(buf, "extern \"C\" fn \{slug}_make_slot() -> Bytes = \"moonbind_make_slot\"")
+  blank(buf)
 }
 
 ///|
@@ -286,9 +341,9 @@ fn emit_function(buf : StringBuilder, gen : Gen, f : @ast.CFnDecl) -> Unit {
     }
     let pname = param_name(p.name, i)
     params.push((pname, ty))
-    // `Bytes` is already a borrowed view of the caller's buffer, and listing it
-    // again is rejected by the compiler.
-    if !is_scalar(ty) && ty != "Bytes" {
+    // Every pointer-shaped parameter must say how it is lent. `Bytes` is a
+    // pointer at runtime and the compiler demands the annotation for it too.
+    if !is_scalar(ty) {
       borrowed.push(pname)
     }
   }
@@ -394,7 +449,7 @@ fn emit_const(
     ("Int64", value.to_string())
   }
   line(buf, "/// C: \{c_name} = \{value}")
-  line(buf, "pub const \{name} : \{ty} = \{literal}")
+  line(buf, "pub let \{name} : \{ty} = \{literal}")
   gen.emitted = gen.emitted + 1
 }
 
@@ -491,9 +546,7 @@ pub fn generate(
   // after the records and before the functions that use them.
   if gen.handles.length() > 0 {
     for handle in gen.handles {
-      line(out, "#external")
-      line(out, "pub type \{handle}")
-      blank(out)
+      emit_handle(out, handle)
     }
   }
   if !consts.is_empty() {

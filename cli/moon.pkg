@@ -4,5 +4,6 @@ import {
   "moonbind-dev/moonbind/cp",
   "moonbind-dev/moonbind/cparse",
   "moonbind-dev/moonbind/layout",
+  "moonbind-dev/moonbind/source",
   "moonbitlang/x/fs",
 }

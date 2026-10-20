@@ -106,6 +106,9 @@ test "field names are kept as written unless reserved" {
   assert_eq(field_name(""), "unnamed")
   // A leading underscore is legal in a field position and is kept.
   assert_eq(field_name("_reserved"), "_reserved")
+  // A capital first letter is a type token to the parser, so it is lowered.
+  assert_eq(field_name("iColumn"), "iColumn")
+  assert_eq(field_name("N"), "n")
 }
 
 ///|
@@ -121,6 +124,7 @@ test "constants become lower-case because MoonBit reads UPPER as a type" {
 test "parameter names are made up when the prototype omits them" {
   assert_eq(param_name("db", 0), "db")
   assert_eq(param_name("", 2), "arg2")
+  assert_eq(param_name("N", 0), "n")
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +149,7 @@ test "a char pointer is Bytes on the way in and opaque on the way out" {
   let s = ptr_(u8_())
   assert_eq(moon_type(m, s, Value), "Bytes")
   // The callee owns a returned string; MoonBit must not claim it.
-  assert_eq(moon_type(m, s, Returned), "VoidPtr?")
+  assert_eq(moon_type(m, s, Returned), "VoidPtr")
 }
 
 ///|
@@ -154,11 +158,11 @@ test "type aliases are followed to the real type" {
   m.add_typedef({ name: "sqlite3", ty: @ast.Record("sqlite3") })
   m.add_typedef({ name: "sqlite3_int64", ty: i64_() })
   assert_eq(moon_type(m, @ast.Named("sqlite3_int64"), Value), "Int64")
-  assert_eq(moon_type(m, ptr_(@ast.Named("sqlite3")), Value), "Sqlite3Ptr?")
+  assert_eq(moon_type(m, ptr_(@ast.Named("sqlite3")), Value), "Sqlite3Ptr")
   // An alias to a pointer keeps the alias as the handle name, so a reader can
   // find the declaration behind `sqlite3_mutex *`.
   m.add_typedef({ name: "sqlite3_mutex_ptr", ty: ptr_(@ast.Void) })
-  assert_eq(moon_type(m, @ast.Named("sqlite3_mutex_ptr"), Value), "VoidPtr?")
+  assert_eq(moon_type(m, @ast.Named("sqlite3_mutex_ptr"), Value), "VoidPtr")
 }
 
 ///|
@@ -167,8 +171,11 @@ test "every pointer level gets its own handle name" {
   assert_eq(handle_name(m, @ast.Void), "VoidPtr")
   assert_eq(handle_name(m, @ast.Record("stmt")), "StmtPtr")
   assert_eq(handle_name(m, ptr_(@ast.Record("stmt"))), "StmtPtrPtr")
-  // `char **` is not a string, so it is not `Bytes`.
-  assert_eq(moon_type(m, ptr_(ptr_(u8_())), Value), "BytePtrPtr?")
+  // A `T **` parameter is an out-parameter: C writes a pointer through it and
+  // MoonBit only reads it back afterwards, so it crosses as a writable slot
+  // rather than as a handle of its own. `char **` is no exception.
+  assert_eq(moon_type(m, ptr_(ptr_(u8_())), Value), "Bytes")
+  assert_eq(moon_type(m, ptr_(ptr_(@ast.Record("stmt"))), Value), "Bytes")
 }
 
 ///|
@@ -178,7 +185,7 @@ test "slot sizes follow the native backend" {
   assert_eq(slot_size("Int"), 4)
   assert_eq(slot_size("Int64"), 8)
   assert_eq(slot_size("Double"), 8)
-  assert_eq(slot_size("StmtPtr?"), 8)
+  assert_eq(slot_size("StmtPtr"), 8)
 }
 
 // ---------------------------------------------------------------------------
@@ -267,8 +274,8 @@ test "a mirrorable record becomes a struct with the header's field names" {
   let m = module_of([struct_of("Pair", [field("a", i64_()), field("b", i64_())])])
   let (out, _) = generate(m, target())
   assert_true(has(out, "pub(all) struct Pair {"))
-  assert_true(has(out, "pub a : Int64"))
-  assert_true(has(out, "pub b : Int64"))
+  assert_true(has(out, "  a : Int64"))
+  assert_true(has(out, "  b : Int64"))
 }
 
 ///|
@@ -281,10 +288,10 @@ test "every non-scalar parameter is borrowed, and scalars are not" {
     param("pair", @ast.Record("Pair")),
   ]))
   let (out, _) = generate(m, target())
-  // `Bytes` is a borrowed view already and must not be listed again; the
-  // compiler rejects it.
-  assert_true(has(out, "#borrow(p, pair)"))
-  assert_true(has(out, "pub extern \"C\" fn take(p : VoidPtr?, s : Bytes, n : Int, pair : Pair) -> Int = \"take\""))
+  // `Bytes` is a pointer at runtime, so the compiler demands a borrow for it
+  // as well; `n` crosses in a register and must not be listed.
+  assert_true(has(out, "#borrow(p, s, pair)"))
+  assert_true(has(out, "pub extern \"C\" fn take(p : VoidPtr, s : Bytes, n : Int, pair : Pair) -> Int = \"take\""))
 }
 
 ///|
@@ -301,7 +308,7 @@ test "a pointer return is an optional handle, not Bytes" {
   let m = @ast.CModule::new()
   m.add_function(foreign("version", ptr_(u8_()), []))
   let (out, _) = generate(m, target())
-  assert_true(has(out, "-> VoidPtr? = \"version\""))
+  assert_true(has(out, "-> VoidPtr = \"version\""))
   assert_true(has(out, "#external\npub type VoidPtr"))
 }
 
@@ -341,9 +348,9 @@ test "enumerators and macros become lower-case integer constants" {
   })
   m.constants.push({ name: "SQLITE_VERSION_NUMBER", ty: i32_(), value: 3045000L })
   let (out, _) = generate(m, target())
-  assert_true(has(out, "pub const sqlite_ok : Int = 0"))
-  assert_true(has(out, "pub const sqlite_row : Int = 100"))
-  assert_true(has(out, "pub const sqlite_version_number : Int = 3045000"))
+  assert_true(has(out, "pub let sqlite_ok : Int = 0"))
+  assert_true(has(out, "pub let sqlite_row : Int = 100"))
+  assert_true(has(out, "pub let sqlite_version_number : Int = 3045000"))
   // The C spelling stays visible so the header can be searched for it.
   assert_true(has(out, "/// C: SQLITE_OK = 0"))
 }
@@ -353,7 +360,7 @@ test "a value too wide for Int is emitted as Int64" {
   let m = @ast.CModule::new()
   m.constants.push({ name: "BIG", ty: i64_(), value: 4294967296L })
   let (out, _) = generate(m, target())
-  assert_true(has(out, "pub const big : Int64 = 4294967296"))
+  assert_true(has(out, "pub let big : Int64 = 4294967296"))
 }
 
 ///|
