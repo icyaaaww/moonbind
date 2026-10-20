@@ -1,5 +1,7 @@
 # moonbind
 
+[中文首页与快速开始](README.md) · [Mooncakes package](https://mooncakes.io/docs/icyaaaww/moonbind)
+
 `moonbind` generates type-safe [MoonBit](https://www.moonbitlang.com/) foreign
 function interface bindings from C headers — the MoonBit counterpart of
 `bindgen`. Point it at `sqlite3.h` and it decides, from the header alone, what
@@ -244,7 +246,7 @@ moon test  --target wasm-gc
 ```
 
 The tool itself builds for wasm-gc. The bindings it generates are `extern "C"`
-declarations, so their packages declare `supported-targets = [ "native" ]` and
+declarations, so their packages declare `supported_targets = [ "native" ]` and
 the demos are run with `--target native`.
 
 ## Roadmap
