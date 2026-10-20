@@ -1,5 +1,7 @@
-// import {
-//   "moonbind-dev/moonbind" @lib,
-// }
+import {
+  "moonbind-dev/moonbind/cli",
+  "moonbitlang/core/env",
+  "moonbitlang/x/sys",
+}
 
 pkgtype(kind: "executable")

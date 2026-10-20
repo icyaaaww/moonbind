@@ -6,7 +6,7 @@
 
 ///|
 /// | Options for loading a header.
-pub struct LoadOptions {
+pub(all) struct LoadOptions {
   /// Directory of the header; `#include "..."` is searched here first.
   pub include_paths : Array[String]
   /// Extra macros, as `NAME=VALUE`.
@@ -39,7 +39,12 @@ pub fn load_header_with_cache(
   cache : @source.SourceCache,
 ) -> @ast.CModule raise @cp.PreprocessError {
   let base = @cp.PreprocessOptions::new()
-  let pp_opts = { ..base, platform: options.platform, }
+  let pp_opts = {
+    ..base,
+    include_paths: options.include_paths,
+    defines: options.defines,
+    platform: options.platform,
+  }
   let pp = @cp.preprocess(path, cache, pp_opts)
   let module = parse_module_with_defines(
     pp.tokens,

@@ -1,0 +1,8 @@
+import {
+  "moonbind-dev/moonbind/ast",
+  "moonbind-dev/moonbind/codegen",
+  "moonbind-dev/moonbind/cp",
+  "moonbind-dev/moonbind/cparse",
+  "moonbind-dev/moonbind/layout",
+  "moonbitlang/x/fs",
+}
