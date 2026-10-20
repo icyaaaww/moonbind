@@ -1,0 +1,75 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbind-dev/moonbind/cp"
+
+import {
+  "moonbind-dev/moonbind/lex",
+  "moonbind-dev/moonbind/source",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn evaluate(Array[@lex.Token], Map[String, Macro], Platform) -> Int64?
+
+pub fn evaluate_with(Array[@lex.Token], Map[String, Macro], Platform, (String) -> Int64?) -> Int64?
+
+pub fn parse_float_text(String) -> Double?
+
+pub fn preprocess(String, @source.SourceCache, PreprocessOptions) -> Preprocessed raise PreprocessError
+
+pub fn preprocess_text(String, String, @source.SourceCache, PreprocessOptions) -> Preprocessed raise PreprocessError
+
+// Errors
+pub(all) suberror PreprocessError {
+  Failed(String)
+} derive(@debug.Debug)
+
+// Types and methods
+type CondFrame
+
+type EvalCtx
+
+type EvalValue
+
+pub(all) struct Macro {
+  kind : MacroKind
+  body : Array[@lex.Token]
+  builtin : Bool
+} derive(@debug.Debug)
+
+pub(all) enum MacroKind {
+  Object
+  Function(Array[String], Bool)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Platform {
+  pointer_bits : Int32
+  windows : Bool
+  wasm : Bool
+} derive(Eq, @debug.Debug)
+pub fn Platform::default() -> Self
+pub fn Platform::lp64() -> Self
+pub fn Platform::wasm32() -> Self
+pub fn Platform::win64() -> Self
+
+pub(all) struct PreprocessOptions {
+  include_paths : Array[String]
+  defines : Array[String]
+  platform : Platform
+  strict : Bool
+  max_include_depth : Int32
+} derive(@debug.Debug)
+pub fn PreprocessOptions::new() -> Self
+
+pub(all) struct Preprocessed {
+  tokens : Array[@lex.Token]
+  defines : Array[(String, String)]
+  pack_events : Array[(Int32, Int32?)]
+  diagnostics : Array[String]
+  files : Array[String]
+} derive(@debug.Debug)
+
+type Preprocessor
+
+// Type aliases
+
+// Traits

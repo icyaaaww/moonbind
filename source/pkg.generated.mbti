@@ -1,0 +1,51 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbind-dev/moonbind/source"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn builtin_header(String) -> String?
+
+pub fn builtin_key(String) -> String
+
+pub fn builtin_names() -> Array[String]
+
+pub fn dir_name(String) -> String
+
+pub fn join_path(String, String) -> String
+
+pub fn normalize_path(String) -> String
+
+pub fn resolve_include(IncludeKind, String, String, Array[String]) -> String?
+
+// Errors
+pub(all) suberror SourceError {
+  NotFound(String)
+} derive(@debug.Debug)
+
+// Types and methods
+pub(all) enum IncludeKind {
+  Quoted
+  Angled
+} derive(Eq, @debug.Debug)
+
+pub(all) struct SourceCache {
+  files : Map[String, String]
+  allow_disk : Bool
+}
+pub fn SourceCache::has(Self, String) -> Bool
+pub fn SourceCache::in_memory() -> Self
+pub fn SourceCache::insert(Self, String, String) -> Unit
+pub fn SourceCache::load(Self, String) -> SourceText raise SourceError
+pub fn SourceCache::new() -> Self
+
+pub(all) struct SourceText {
+  path : String
+  text : String
+} derive(@debug.Debug)
+
+// Type aliases
+
+// Traits

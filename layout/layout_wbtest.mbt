@@ -21,6 +21,11 @@ fn u8_() -> @ast.CType {
 }
 
 ///|
+fn u16_() -> @ast.CType {
+  @ast.Int(@ast.CU16)
+}
+
+///|
 fn i64_() -> @ast.CType {
   @ast.Int(@ast.CI64)
 }
@@ -189,12 +194,112 @@ test "a bitfield may cross a byte boundary" {
 }
 
 ///|
-test "a bitfield may cross its declared type's boundary on these ABIs" {
-  // 26 + 7 bits do not fit in one 32-bit unit, but SysV does not round the
-  // second field to a fresh unit: it continues at bit 26.
+test "an unpacked bitfield does not cross its declared type's unit" {
+  // 26 + 7 do not fit in one 32-bit unit, so `b` starts the next unit.
   let r = struct_of("S", [bits("a", u32_(), 26), bits("b", u32_(), 7)])
-  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="26")
+  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="32")
   inspect(laid_out(Target::sysv64(), [r], "S"), content="(8, 4)")
+}
+
+///|
+test "an unpacked bitfield that fits stays in the unit" {
+  let r = struct_of("S", [bits("a", u32_(), 26), bits("b", u32_(), 4)])
+  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="26")
+  inspect(laid_out(Target::sysv64(), [r], "S"), content="(4, 4)")
+}
+
+///|
+test "the unit is the declared type's width, not the record's" {
+  // Both fields are `unsigned char`, so the unit is eight bits: `b` needs six
+  // and only four are left. With `unsigned` instead, the same bits fit in the
+  // 32-bit unit and `b` stays at bit 4.
+  let narrow = struct_of("N", [bits("a", u8_(), 4), bits("b", u8_(), 6)])
+  inspect(bit_offset(Target::sysv64(), [narrow], "N", "b"), content="8")
+  inspect(laid_out(Target::sysv64(), [narrow], "N"), content="(2, 1)")
+  let wide = struct_of("W", [bits("a", u8_(), 4), bits("b", u32_(), 6)])
+  inspect(bit_offset(Target::sysv64(), [wide], "W", "b"), content="4")
+  inspect(laid_out(Target::sysv64(), [wide], "W"), content="(4, 4)")
+}
+
+///|
+test "a wider field following a narrower one uses its own unit" {
+  // `a` is a byte, `b` a short. Once four bits are used, fourteen more do not
+  // fit in a 16-bit unit, so `b` starts at byte 2. With only seven bits it
+  // would have fitted at bit 4, which is the case the next test pins down.
+  let r = struct_of("S", [bits("a", u8_(), 4), bits("b", u16_(), 14)])
+  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="16")
+  inspect(laid_out(Target::sysv64(), [r], "S"), content="(4, 2)")
+}
+
+///|
+test "a wider unit can be entered part way through" {
+  // Bit 4 of a 16-bit unit leaves twelve bits, and seven fit.
+  let r = struct_of("S", [bits("a", u8_(), 4), bits("b", u16_(), 7)])
+  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="4")
+  inspect(laid_out(Target::sysv64(), [r], "S"), content="(2, 2)")
+}
+
+///|
+test "three bitfields pack back to back while each fits its unit" {
+  let r = struct_of("S", [
+    bits("a", u32_(), 8),
+    bits("b", u32_(), 9),
+    bits("c", u32_(), 15),
+  ])
+  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="8")
+  inspect(bit_offset(Target::sysv64(), [r], "S", "c"), content="17")
+  inspect(laid_out(Target::sysv64(), [r], "S"), content="(4, 4)")
+}
+
+///|
+test "a long long unit absorbs bits a narrower unit would not" {
+  // The 40-bit field does not affect the check for itself: it starts at 3
+  // because it fits in its own 64-bit unit.
+  let r = struct_of("S", [bits("a", i32_(), 3), bits("b", i64_(), 40)])
+  inspect(bit_offset(Target::sysv64(), [r], "S", "b"), content="3")
+  inspect(laid_out(Target::sysv64(), [r], "S"), content="(8, 8)")
+}
+
+///|
+test "packing waives the unit check instead of shrinking the unit" {
+  // The same fields clang lays out at bit 26 under any `#pragma pack`, and
+  // under `__attribute__((packed))` as well.
+  let p1 = struct_of("A", [bits("a", u32_(), 26), bits("b", u32_(), 7)])
+  p1.pack = Some(1)
+  inspect(bit_offset(Target::sysv64(), [p1], "A", "b"), content="26")
+  inspect(laid_out(Target::sysv64(), [p1], "A"), content="(5, 1)")
+  let p2 = struct_of("B", [bits("a", u32_(), 26), bits("b", u32_(), 7)])
+  p2.pack = Some(2)
+  inspect(bit_offset(Target::sysv64(), [p2], "B", "b"), content="26")
+  inspect(laid_out(Target::sysv64(), [p2], "B"), content="(6, 2)")
+  let p8 = struct_of("C", [bits("a", u32_(), 26), bits("b", u32_(), 7)])
+  p8.pack = Some(8)
+  inspect(bit_offset(Target::sysv64(), [p8], "C", "b"), content="26")
+  inspect(laid_out(Target::sysv64(), [p8], "C"), content="(8, 4)")
+}
+
+///|
+test "a packed bitfield takes no alignment from its declared type" {
+  let r = struct_of("S", [bits("a", u32_(), 3)])
+  r.pack = Some(1)
+  inspect(laid_out(Target::sysv64(), [r], "S"), content="(1, 1)")
+  // The wide unit is what makes the unpacked record four bytes.
+  let loose = struct_of("T", [bits("a", u32_(), 3)])
+  inspect(laid_out(Target::sysv64(), [loose], "T"), content="(4, 4)")
+}
+
+///|
+test "a packed union sizes a bitfield by the bytes it occupies" {
+  let packed = union_of("P", [field("c", u8_()), bits("a", u32_(), 20)])
+  packed.pack = Some(1)
+  inspect(laid_out(Target::sysv64(), [packed], "P"), content="(3, 1)")
+  // Unpacked, the member reserves its declared type.
+  let loose = union_of("L", [field("c", u8_()), bits("a", u32_(), 20)])
+  inspect(laid_out(Target::sysv64(), [loose], "L"), content="(4, 4)")
+  // `#pragma pack(2)` caps the alignment but does not shrink the storage.
+  let capped = union_of("C", [field("c", u8_()), bits("a", u32_(), 20)])
+  capped.pack = Some(2)
+  inspect(laid_out(Target::sysv64(), [capped], "C"), content="(4, 2)")
 }
 
 ///|

@@ -7,13 +7,23 @@
 //!
 //! * A non-bitfield starts at the next offset that is a multiple of its
 //!   natural alignment, and the cursor advances by its size.
-//! * A bitfield occupies `width` consecutive bits at the cursor. It may span
-//!   byte boundaries, and on these ABIs it may span the boundary of its own
-//!   declared type — `struct { int a : 26; int b : 7; }` is 8 bytes, not 16.
+//! * A bitfield occupies `width` consecutive bits at the cursor and may span
+//!   byte boundaries, but in an unpacked record it may not span the boundary
+//!   of its own declared type's unit: it lands at the cursor only if
+//!   `cursor mod unit + width <= unit`, and otherwise at the next multiple of
+//!   `unit`, where `unit` is `8 * sizeof(declared type)`. So
+//!   `struct { int a : 26; int b : 7; }` puts `b` at bit 32 and is 8 bytes,
+//!   while `struct { int a : 26; int b : 4; }` puts `b` at bit 26 and is 4.
 //!   A bitfield still raises the record's alignment to that of its declared
 //!   type, which is why `struct { int a : 1; }` is 4 bytes.
+//! * Any packing — `#pragma pack(n)` for any `n`, or
+//!   `__attribute__((packed))` — waives that unit check outright rather than
+//!   shrinking the unit. A packed `struct { int a : 26; int b : 7; }` puts
+//!   `b` at bit 26 and is 5 bytes, and it takes no alignment at all from the
+//!   declared types of its bitfields.
 //! * A zero-width bitfield moves the cursor to the next multiple of its
-//!   declared type's width without contributing alignment of its own.
+//!   declared type's width without contributing alignment of its own, packed
+//!   or not.
 //! * A record's alignment is the widest member alignment, capped by
 //!   `#pragma pack` and raised by `__attribute__((aligned(n)))`, and its size
 //!   is rounded up to that alignment so that an array of records stays
@@ -255,21 +265,27 @@ fn Engine::build_union(
     let (fsize, falign) = self.measure(field.ty)
     let al = self.member_align(field, falign, decl.pack)
     if field.bit_width is Some(width) {
-      // A bitfield member of a union still reserves its declared type; the
-      // bits it uses do not shrink the union.
+      // In an unpacked union a bitfield member still reserves its declared
+      // type; the bits it uses do not shrink the union. A packed union sizes
+      // it by the bytes it actually occupies, so `unsigned a : 20` costs 3.
+      let w = width.to_int64().to_int()
+      let bsize = if decl.pack is None { fsize } else { ceil_div(w, 8) }
       fields.push({
         name: field.name,
         offset: 0,
-        size: fsize,
+        size: bsize,
         align: al,
         bit_offset: Some(0),
-        bit_width: Some(width.to_int64().to_int()),
+        bit_width: Some(w),
       })
+      if bsize > size {
+        size = bsize
+      }
     } else {
       fields.push(plain_field(field, 0, fsize, al))
-    }
-    if fsize > size {
-      size = fsize
+      if fsize > size {
+        size = fsize
+      }
     }
     if al > max_align {
       max_align = al
@@ -302,6 +318,16 @@ fn Engine::build_struct(
       } else {
         if al > max_align {
           max_align = al
+        }
+        // In an unpacked record a bitfield must fit in the unit of its own
+        // declared type; if it does not, it starts the next unit. Packing
+        // waives the check instead of shrinking the unit, so a packed record
+        // is laid out by the bare cursor.
+        if decl.pack is None {
+          let unit = usize * 8
+          if cursor_bits % unit + w > unit {
+            cursor_bits = round_up(cursor_bits, unit)
+          }
         }
         fields.push({
           name: field.name,

@@ -1,0 +1,46 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbind-dev/moonbind/cparse"
+
+import {
+  "moonbind-dev/moonbind/ast",
+  "moonbind-dev/moonbind/cp",
+  "moonbind-dev/moonbind/lex",
+  "moonbind-dev/moonbind/source",
+}
+
+// Values
+pub fn load_header(String, LoadOptions) -> @ast.CModule raise @cp.PreprocessError
+
+pub fn load_header_with_cache(String, LoadOptions, @source.SourceCache) -> @ast.CModule raise @cp.PreprocessError
+
+pub fn parse_module(Array[@lex.Token], @cp.Platform) -> @ast.CModule
+
+pub fn parse_module_with_defines(Array[@lex.Token], Array[(String, String)], @cp.Platform) -> @ast.CModule
+
+// Errors
+
+// Types and methods
+type Attrs
+
+type Base derive(Eq)
+
+type Ctor
+
+type Cursor
+
+type Declarator
+
+pub struct LoadOptions {
+  include_paths : Array[String]
+  defines : Array[String]
+  platform : @cp.Platform
+}
+pub fn LoadOptions::new() -> Self
+
+type Specs
+
+type Storage derive(Eq)
+
+// Type aliases
+
+// Traits

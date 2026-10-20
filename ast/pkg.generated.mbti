@@ -10,37 +10,38 @@ import {
 // Errors
 
 // Types and methods
-pub struct CConstDecl {
+pub(all) struct CConstDecl {
   name : String
   ty : CType
   value : Int64
 } derive(@debug.Debug)
 
-pub struct CEnumDecl {
+pub(all) struct CEnumDecl {
   tag : String
   items : Array[CEnumItem]
   complete : Bool
 } derive(@debug.Debug)
 
-pub struct CEnumItem {
+pub(all) struct CEnumItem {
   name : String
   value : Int64
 } derive(@debug.Debug)
 
-pub struct CField {
+pub(all) struct CField {
   name : String
   mut ty : CType
   bit_width : Int32?
   anonymous : Bool
+  align : Int32?
 } derive(@debug.Debug)
 
-pub enum CFloatKind {
+pub(all) enum CFloatKind {
   F32
   F64
 } derive(Eq, @debug.Debug)
 pub fn CFloatKind::bits(Self) -> Int32
 
-pub struct CFnDecl {
+pub(all) struct CFnDecl {
   name : String
   mut ret : CType
   params : Array[CParam]
@@ -48,20 +49,20 @@ pub struct CFnDecl {
   internal : Bool
 } derive(@debug.Debug)
 
-pub enum CIntKind {
-  I8
-  U8
-  I16
-  U16
-  I32
-  U32
-  I64
-  U64
+pub(all) enum CIntKind {
+  CI8
+  CU8
+  CI16
+  CU16
+  CI32
+  CU32
+  CI64
+  CU64
 } derive(Eq, @debug.Debug)
 pub fn CIntKind::bits(Self) -> Int32
 pub fn CIntKind::is_signed(Self) -> Bool
 
-pub struct CModule {
+pub(all) struct CModule {
   records : Map[String, CRecordDecl]
   enums : Map[String, CEnumDecl]
   typedefs : Map[String, CTypedef]
@@ -77,6 +78,8 @@ pub fn CModule::exported_functions(Self) -> Array[CFnDecl]
 pub fn CModule::forward_record(Self, RecordKind, String) -> Unit
 pub fn CModule::function_named(Self, String) -> CFnDecl?
 pub fn CModule::new() -> Self
+pub fn CModule::rename_enum(Self, String, String) -> Unit
+pub fn CModule::rename_record(Self, String, String) -> Unit
 pub fn CModule::resolve_all(Self) -> Unit
 pub fn CModule::resolver(Self) -> (String) -> CType
 pub fn CModule::sorted_enum_tags(Self) -> Array[String]
@@ -84,20 +87,21 @@ pub fn CModule::sorted_record_tags(Self) -> Array[String]
 pub fn CModule::sorted_typedef_names(Self) -> Array[String]
 pub fn CModule::typedef_of(Self, String) -> CType?
 
-pub struct CParam {
+pub(all) struct CParam {
   name : String
   mut ty : CType
 } derive(@debug.Debug)
 
-pub struct CRecordDecl {
+pub(all) struct CRecordDecl {
   tag : String
   kind : RecordKind
   fields : Array[CField]
   complete : Bool
-  pack : Int32?
+  mut pack : Int32?
+  mut align : Int32?
 } derive(@debug.Debug)
 
-pub enum CType {
+pub(all) enum CType {
   Void
   Int(CIntKind)
   Float(CFloatKind)
@@ -115,12 +119,12 @@ pub fn CType::pointee(Self) -> Self?
 pub fn CType::resolve_names(Self, (String) -> Self) -> Self
 pub fn CType::same(Self, Self) -> Bool
 
-pub struct CTypedef {
+pub(all) struct CTypedef {
   name : String
   mut ty : CType
 } derive(@debug.Debug)
 
-pub struct FnSig {
+pub(all) struct FnSig {
   ret : CType
   params : Array[CType]
   variadic : Bool
@@ -128,7 +132,7 @@ pub struct FnSig {
 pub fn FnSig::resolve_names(Self, (String) -> CType) -> Self
 pub fn FnSig::same(Self, Self) -> Bool
 
-pub enum RecordKind {
+pub(all) enum RecordKind {
   Struct
   Union
 } derive(Eq, @debug.Debug)

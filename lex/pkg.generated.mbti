@@ -1,0 +1,62 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "moonbind-dev/moonbind/lex"
+
+import {
+  "moonbind-dev/moonbind/ast",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn decode_literal(String) -> String
+
+pub fn parse_char_literal(String) -> Int64?
+
+pub fn parse_integer_literal(String) -> IntLiteral?
+
+pub fn strip_newlines(Array[Token]) -> Array[Token]
+
+pub fn tokenize(String) -> Array[Token]
+
+// Errors
+
+// Types and methods
+pub(all) struct IntLiteral {
+  value : Int64
+  ty : @ast.CIntKind
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Lexer {
+  src : String
+  file : String
+  mut pos : Int32
+  mut line : Int32
+  mut col : Int32
+  mut last_end : Int32
+}
+pub fn Lexer::new(String) -> Self
+pub fn Lexer::run(Self) -> Array[Token]
+pub fn Lexer::with_file(String, String) -> Self
+
+pub(all) enum TokKind {
+  Ident
+  Number
+  Str
+  CharLit
+  Punct
+  Newline
+  Eof
+  Pragma
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Token {
+  kind : TokKind
+  text : String
+  line : Int32
+  col : Int32
+  file : String
+  space_before : Bool
+} derive(@debug.Debug)
+
+// Type aliases
+
+// Traits
