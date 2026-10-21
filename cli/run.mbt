@@ -29,32 +29,80 @@ pub fn run(options : Options) -> String raise RunError {
   if options.verify {
     return @layout.layout_table(options.target, parsed)
   }
-  let (text, skips) = @codegen.generate(parsed, options.target)
-  if options.report {
+  if options.compare is Some(old_header) {
+    let old = @cparse.load_header(old_header, load_options) catch {
+      @cp.Failed(err) =>
+        raise Failed("could not read " + old_header + ": " + err)
+    }
+    let report = with_context(
+      compare_headers(old, parsed, options.target, options.allow_functions),
+      options,
+    )
+    return if options.json {
+      report.stringify(indent=2)
+    } else {
+      comparison_text(report)
+    }
+  }
+  for name in options.allow_functions {
+    if !parsed.exported_functions().any(f => f.name == name) {
+      raise Failed(
+        "allow_functions names an unknown exported function: " + name,
+      )
+    }
+  }
+  let selected = selected_module(parsed, options.allow_functions)
+  validate_renames(selected, options.rename_functions)
+  let (text, skips) = @codegen.generate(
+    selected,
+    options.target,
+    function_names=options.rename_functions,
+  )
+  for c_name, moon_name in options.rename_functions {
+    if text.contains("= \"" + c_name + "\"") &&
+      !text
+      .split("\n")
+      .any(line => {
+        line.contains("fn " + moon_name + "(") &&
+        line.has_suffix("= \"" + c_name + "\"")
+      }) {
+      raise Failed(
+        "rename collides with another generated declaration: " + moon_name,
+      )
+    }
+  }
+  if options.report && !options.json {
     for s in skips {
       eprintln("left out: \{s.name} — \{s.reason}")
     }
+    eprintln(summary(selected, skips))
   }
+  let report = with_context(
+    generation_report(parsed, options.target, options.allow_functions),
+    options,
+  )
   match options.out {
     None => ()
-    Some(dir) => write_package(dir, text)
+    Some(dir) => {
+      let files : Map[String, String] = Map([
+        ("bindings.mbt", text),
+        ("strings.mbt", @codegen.strings_source()),
+        ("stub.c", @codegen.stub_source()),
+        (
+          "moon.pkg",
+          @codegen.package_manifest(native_sources=options.native_sources),
+        ),
+        ("moonbind-report.json", report.stringify(indent=2) + "\n"),
+      ])
+      write_managed(dir, files, options.check)
+    }
   }
-  text
-}
-
-///|
-/// | Write the four files a usable package is made of. They are written as a
-/// | set because a package that is missing its manifest will not build, and a
-/// | half-written package is a confusing thing to debug.
-fn write_package(dir : String, text : String) -> Unit raise RunError {
-  try {
-    make_dirs(dir)
-    @fs.write_string_to_file(dir + "/moon.pkg", @codegen.package_manifest())
-    @fs.write_string_to_file(dir + "/stub.c", @codegen.stub_source())
-    @fs.write_string_to_file(dir + "/strings.mbt", @codegen.strings_source())
-    @fs.write_string_to_file(dir + "/bindings.mbt", text)
-  } catch {
-    @fs.IOError(err) => raise Failed("could not write into " + dir + ": " + err)
+  if options.json {
+    report.stringify(indent=2)
+  } else if options.check {
+    "Generated files are up to date."
+  } else {
+    text
   }
 }
 

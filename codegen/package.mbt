@@ -6,18 +6,19 @@
 //! is exactly the work a generator exists to remove, so it writes them.
 
 ///|
-/// | The manifest for a generated package. The stub is compiled into every
-/// | binary that links the bindings, which is what makes `copy_cstr` work.
-///
-/// `supported-targets` is not optional. Every declaration the generator emits
-/// is `extern "C"`, and the wasm-gc backend rejects those outright (error
-/// 4156), so a manifest without the restriction turns `moon check` — which
-/// defaults to wasm — into eighteen errors about a package the tool just
-/// wrote. The spelling has to be the option form: `supported_targets` at the
-/// top level is rejected with error 4192 by the same compiler that prints the
-/// deprecation warning.
-pub fn package_manifest() -> String {
-  "options(\n  \"native-stub\": [ \"stub.c\" ],\n  \"supported-targets\": [ \"native\" ],\n)\n"
+/// Generate a native package manifest. Additional C sources are relative to
+/// the generated package and are configured, not patched after generation.
+pub fn package_manifest(native_sources~ : Array[String] = []) -> String {
+  let sources = ["stub.c"]
+  for path in native_sources {
+    if !sources.contains(path) {
+      sources.push(path)
+    }
+  }
+  let quoted = sources.map(s => s.to_json().stringify())
+  "supported_targets = [ \"native\" ]\n\noptions(\n  \"native-stub\": [ " +
+  quoted.join(", ") +
+  " ],\n)\n"
 }
 
 ///|

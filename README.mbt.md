@@ -21,7 +21,7 @@ generator writes the whole MoonBit package into it: `bindings.mbt`,
 laid out for — `x86_64` (the default), `aarch64` or `wasm32` — because a
 binding is only correct for the machine whose struct layout it mirrors.
 
-> **Status: 0.1.0.** Lexer, preprocessor, C11 parser, record layout for three
+> **Status: 0.2.0.** Lexer, preprocessor, C11 parser, record layout for three
 > ABIs, code generation and the command line are complete and tested. What is
 > left is a longer list of refusal reasons, not a missing stage; see
 > [Roadmap](#roadmap).
@@ -209,14 +209,22 @@ struct P2  0:0-25 a  3:2-8 b [sizeof=6, align=2]
 union P9  0 c  0:0-19 a [sizeof=4, align=4]
 ```
 
+## Maintaining bindings in 0.2
+
+See the [0.2 guide](docs/v0.2.md) for strict JSON configuration, edit protection,
+`--check`, JSON reports, function selection/renaming and old/new header comparison.
+Native CI regenerates SQLite and zlib bindings in fresh projects before compiling,
+linking and running them. Header comparisons are source-level review aids, not
+complete binary compatibility verdicts.
+
 ## Building
 
 ### Install the Mooncakes library
 
-The published module is `icyaaaww/moonbind@0.1.0`:
+The published module is `icyaaaww/moonbind@0.2.0`:
 
 ```sh
-moon add icyaaaww/moonbind@0.1.0
+moon add icyaaaww/moonbind@0.2.0
 ```
 
 Import the stage you need, for example `"icyaaaww/moonbind/layout"` or
@@ -256,7 +264,7 @@ the demos are run with `--target native`.
 - [x] MoonBit code generation
 - [x] Command-line interface and runnable examples
 - [x] Differential verification against clang
-- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.1.0
+- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.2.0
 - [ ] Struct returns by value, once the FFI can express them
 - [ ] `#define` function-like macros as MoonBit functions
 

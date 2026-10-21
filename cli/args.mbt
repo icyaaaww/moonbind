@@ -9,7 +9,7 @@
 ///|
 /// | The version the binary reports. Kept in step with `moon.mod` by hand, and
 /// | by a test that reads the manifest.
-pub let version : String = "0.1.0"
+pub let version : String = "0.2.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -25,6 +25,13 @@ pub(all) struct Options {
   pub report : Bool
   /// Print the record layout table instead of generating bindings.
   pub verify : Bool
+  pub config : String?
+  pub compare : String?
+  pub json : Bool
+  pub check : Bool
+  pub allow_functions : Array[String]
+  pub native_sources : Array[String]
+  pub rename_functions : Map[String, String]
 } derive(Debug, Eq)
 
 ///|
@@ -69,6 +76,13 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let defines : Array[String] = []
   let mut report = false
   let mut verify = false
+  let mut config : String? = None
+  let mut compare : String? = None
+  let mut json = false
+  let mut check = false
+  let allow_functions : Array[String] = []
+  let native_sources : Array[String] = []
+  let rename_functions : Map[String, String] = Map([])
   let mut i = 0
   // A `--out` with no value is the one error that can be spotted in the loop;
   // everything else is checked once the whole list has been read.
@@ -86,7 +100,23 @@ pub fn parse_args(argv : Array[String]) -> Args {
         verify = true
         i = i + 1
       }
-      "--out" | "--target" | "--include" | "--define" =>
+      "--json" => {
+        json = true
+        i = i + 1
+      }
+      "--check" => {
+        check = true
+        i = i + 1
+      }
+      "--out"
+      | "--target"
+      | "--include"
+      | "--define"
+      | "--config"
+      | "--compare"
+      | "--allow"
+      | "--native-source"
+      | "--rename" =>
         if i + 1 >= argv.length() {
           missing = Some(arg)
           i = i + 1
@@ -104,6 +134,19 @@ pub fn parse_args(argv : Array[String]) -> Args {
                     " (expected x86_64, aarch64 or wasm32)",
                   )
               }
+            "--rename" => {
+              let parts = value.split("=").to_array()
+              if parts.length() != 2 ||
+                parts[0].is_empty() ||
+                parts[1].is_empty() {
+                return Bad("--rename requires c_name=moonbit_name")
+              }
+              rename_functions[parts[0].to_string()] = parts[1].to_string()
+            }
+            "--config" => config = Some(value)
+            "--compare" => compare = Some(value)
+            "--allow" => allow_functions.push(value)
+            "--native-source" => native_sources.push(value)
             "--include" => includes.push(value)
             _ => defines.push(value)
           }
@@ -125,6 +168,19 @@ pub fn parse_args(argv : Array[String]) -> Args {
     Some(flag) => return Bad("option " + flag + " needs a value")
     None => ()
   }
+  if check && out is None && config is None {
+    return Bad("--check requires --out")
+  }
+  if compare is Some(_) && (verify || check || out is Some(_)) {
+    return Bad("--compare cannot be combined with --out, --check or --verify")
+  }
+  if verify && (json || check) {
+    return Bad("--verify cannot be combined with --json or --check")
+  }
+  let header = match (header, config) {
+    (None, Some(_)) => Some("")
+    _ => header
+  }
   match header {
     None => Bad("no header given")
     Some(h) =>
@@ -136,6 +192,13 @@ pub fn parse_args(argv : Array[String]) -> Args {
         defines,
         report,
         verify,
+        config,
+        compare,
+        json,
+        check,
+        allow_functions,
+        native_sources,
+        rename_functions,
       })
   }
 }

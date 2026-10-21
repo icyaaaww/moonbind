@@ -10,13 +10,25 @@ import {
 }
 
 // Values
+pub fn compare_headers(@ast.CModule, @ast.CModule, @layout.Target, Array[String]) -> Json
+
+pub fn config_args(String, String, comparing? : Bool) -> Array[String] raise RunError
+
+pub fn failure_report(String) -> String
+
+pub fn generation_report(@ast.CModule, @layout.Target, Array[String]) -> Json
+
 pub fn parse_args(Array[String]) -> Args
 
 pub fn platform_for(@layout.Target) -> @cp.Platform
 
+pub fn prepare_args(Array[String]) -> Args raise RunError
+
 pub fn run(Options) -> String raise RunError
 
 pub fn summary(@ast.CModule, Array[@codegen.Skip]) -> String
+
+pub fn update_conflicts(Map[String, String], Map[String, String], Map[String, String]) -> Array[String]
 
 pub fn usage() -> String
 
@@ -43,6 +55,13 @@ pub(all) struct Options {
   defines : Array[String]
   report : Bool
   verify : Bool
+  config : String?
+  compare : String?
+  json : Bool
+  check : Bool
+  allow_functions : Array[String]
+  native_sources : Array[String]
+  rename_functions : Map[String, String]
 } derive(Eq, @debug.Debug)
 
 // Type aliases

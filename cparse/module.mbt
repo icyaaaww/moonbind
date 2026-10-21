@@ -191,6 +191,16 @@ fn Cursor::parse_declaration(self : Cursor) -> Unit {
   let attrs = Attrs::new()
   self.parse_specs(specs, attrs)
   self.skip_attributes(attrs)
+  // Attributes following a record body were collected into the declaration
+  // attributes; commit_specs reads the record attributes instead.
+  if specs.pending_fields is Some(_) {
+    if attrs.packed {
+      specs.attrs.packed = true
+    }
+    if attrs.align is Some(n) {
+      specs.attrs.align = Some(n)
+    }
+  }
   if self.accept(";") {
     // `struct S { ... };` declares the tag and nothing else.
     self.commit_specs(specs)

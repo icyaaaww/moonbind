@@ -55,6 +55,7 @@ struct Gen {
   /// Functions left out, with the reason.
   skips : Array[Skip]
   /// Declarations written.
+  function_names : Map[String, String]
   mut emitted : Int32
 }
 
@@ -69,6 +70,7 @@ fn Gen::new(target : @layout.Target, module : @ast.CModule) -> Gen {
     handles: [],
     refusals: [],
     skips: [],
+    function_names: Map([]),
     emitted: 0,
   }
 }
@@ -398,7 +400,9 @@ fn emit_function(buf : StringBuilder, gen : Gen, f : @ast.CFnDecl) -> Unit {
     })
     return
   }
-  let name = gen.claim_value(function_name(f.name))
+  let name = gen.claim_value(
+    gen.function_names.get(f.name).unwrap_or(function_name(f.name)),
+  )
   line(buf, "/// C: \{moon_signature(f)}")
   if borrowed.length() > 0 {
     line(buf, "#borrow(\{borrowed.join(", ")})")
@@ -534,8 +538,12 @@ fn claim_record_types(gen : Gen) -> Unit {
 pub fn generate(
   module : @ast.CModule,
   target : @layout.Target,
+  function_names~ : Map[String, String] = Map([]),
 ) -> (String, Array[Skip]) {
   let gen = Gen::new(target, module)
+  for key, value in function_names {
+    gen.function_names[key] = value
+  }
   claim_record_types(gen)
   // `strings.mbt` is written into every generated package and its `copy_cstr`
   // takes a `VoidPtr`, so that handle has to exist even when the header never

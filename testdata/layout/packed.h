@@ -15,6 +15,7 @@
 //   struct P8   0:0-3 a    0:4-9 b   [sizeof=2, align=1]
 //   union  P9   0 c        0:0-19 a   [sizeof=4, align=4]
 //   union  P10  0 c        0:0-19 a   [sizeof=3, align=1]
+//   struct P11  0 c        1 i        [sizeof=5, align=1]
 //
 // P1 through P5 all put `b` at bit 26 — packing removes the unit check, so
 // nothing pushes it to bit 32 — and differ only in how far the size is
@@ -39,3 +40,5 @@ struct __attribute__((packed)) P6 { unsigned a : 3; };
 struct __attribute__((packed)) P8 { unsigned char a : 4; unsigned char b : 6; };
 union P9 { char c; unsigned a : 20; };
 union __attribute__((packed)) P10 { char c; unsigned a : 20; };
+// Attribute after the body must be retained by the parser as well.
+struct P11 { char c; int i; } __attribute__((packed));

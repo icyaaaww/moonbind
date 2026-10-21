@@ -6,4 +6,5 @@ import {
   "icyaaaww/moonbind/layout",
   "icyaaaww/moonbind/source",
   "moonbitlang/x/fs",
+  "moonbitlang/core/json",
 }

@@ -27,7 +27,13 @@ fn main {
 ///|
 /// | Parse, run, report. Returns the status.
 fn drive(argv : Array[String]) -> Int32 {
-  let options = match @cli.parse_args(argv) {
+  let parsed_args = @cli.prepare_args(argv) catch {
+    @cli.Failed(message) => {
+      report_error(argv, message)
+      return 2
+    }
+  }
+  let options = match parsed_args {
     @cli.Help => {
       println(@cli.usage())
       return 0
@@ -37,16 +43,17 @@ fn drive(argv : Array[String]) -> Int32 {
       return 0
     }
     @cli.Bad(message) => {
-      eprintln("moonbind: " + message)
-      eprintln("")
-      eprintln(@cli.usage())
+      report_error(argv, message)
+      if !argv.contains("--json") {
+        eprintln(@cli.usage())
+      }
       return 2
     }
     @cli.Run(options) => options
   }
   let text = @cli.run(options) catch {
     @cli.Failed(message) => {
-      eprintln("moonbind: " + message)
+      report_error(argv, message)
       return 1
     }
   }
@@ -54,7 +61,19 @@ fn drive(argv : Array[String]) -> Int32 {
   // whether or not `--out` was given.
   match options.out {
     None => println(text)
-    Some(_) => if options.verify { println(text) }
+    Some(_) =>
+      if options.verify || options.json || options.check {
+        println(text)
+      }
   }
   0
+}
+
+///|
+fn report_error(argv : Array[String], message : String) -> Unit {
+  if argv.contains("--json") {
+    println(@cli.failure_report(message))
+  } else {
+    eprintln("moonbind: " + message)
+  }
 }

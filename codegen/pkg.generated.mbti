@@ -16,7 +16,7 @@ pub fn float_type(@ast.CFloatKind) -> String
 
 pub fn function_name(String) -> String
 
-pub fn generate(@ast.CModule, @layout.Target) -> (String, Array[Skip])
+pub fn generate(@ast.CModule, @layout.Target, function_names? : Map[String, String]) -> (String, Array[Skip])
 
 pub fn handle_name(@ast.CModule, @ast.CType) -> String
 
@@ -32,7 +32,7 @@ pub fn moon_type(@ast.CModule, @ast.CType, Position) -> String
 
 pub fn opaque_name(String) -> String
 
-pub fn package_manifest() -> String
+pub fn package_manifest(native_sources? : Array[String]) -> String
 
 pub fn param_name(String, Int32) -> String
 

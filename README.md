@@ -3,7 +3,7 @@
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.1.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.2.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 [English / 技术设计详解](README.mbt.md) · [Mooncakes 包文档](https://mooncakes.io/docs/icyaaaww/moonbind) · [示例代码](examples) · [反馈问题](https://github.com/icyaaaww/moonbind/issues)
@@ -12,7 +12,23 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-当前发布版本为 **0.1.0**，适合试用、生成初始绑定和检查布局。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+当前发布版本为 **0.2.0**，适合试用、生成初始绑定和检查布局。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+
+## 0.2 新增：生成之后，也能维护
+
+- **项目配置**：保存宏、包含路径、目标、函数筛选、重命名与 C 源文件设置。
+- **安全更新**：写入前检测用户修改；`--check` 检查产物是否过期。
+- **升级对比**：列出声明和布局变化，追踪受影响函数。
+- **结构化报告**：查看生成、跳过和排除的接口，支持 JSON 错误输出。
+- **真实库验证**：CI 从头生成 SQLite、zlib 绑定，再编译、链接并实际调用。
+
+详见 [0.2 使用指南](docs/v0.2.md) 和 [更新记录](CHANGELOG.md)。
+
+```sh
+moon run cmd/main --target wasm-gc -- --config moonbind.example.json
+moon run cmd/main --target wasm-gc -- --config moonbind.example.json --check
+moon run cmd/main --target wasm-gc -- testdata/upgrade/v2.h --compare testdata/upgrade/v1.h --json
+```
 
 ## 能解决什么问题
 
@@ -55,10 +71,12 @@ _build/generated-greet/
 ├── bindings.mbt   # 函数、类型和常量绑定
 ├── strings.mbt    # C 字符串复制辅助接口
 ├── stub.c         # C 侧辅助函数
-└── moon.pkg       # 生成包的依赖和原生目标配置
+├── moon.pkg       # 生成包的依赖和原生目标配置
+├── moonbind-report.json # 结构化生成报告
+└── .moonbind-state.json # 检测手工修改的生成基线
 ```
 
-生成包不包含被绑定库的实现。接入项目时，需要把实际 C 源文件加入 `native-stub`，或按所用工具链配置库链接。仓库中的 `examples/greet/moon.pkg` 演示了如何加入 `greet.c`。
+生成包不包含被绑定库的实现。接入项目时，可通过配置中的 `native_sources` 添加实际 C 源文件，或在消费方按所用工具链配置库链接。仓库中的 `examples/greet/moon.pkg` 演示了如何加入 `greet.c`。
 
 > 命令中 `--` 前的 `--target wasm-gc` 选择生成器的运行后端；`--` 后的 `--target aarch64` 等参数选择所分析 C 类型的 ABI。生成的 `extern "C"` 绑定用于 MoonBit native 后端。选择 `wasm32` 布局不代表生成包可以直接在浏览器运行。
 
@@ -67,7 +85,7 @@ _build/generated-greet/
 在已有 MoonBit 模块中安装：
 
 ```sh
-moon add icyaaaww/moonbind@0.1.0
+moon add icyaaaww/moonbind@0.2.0
 ```
 
 按需在调用方的 `moon.pkg` 中导入子包；模块根包不提供生成器 API：
@@ -141,7 +159,7 @@ moon test --target wasm-gc
 moon fmt --check
 ```
 
-0.1.0 发布时，**83 项测试通过**，并完成了从 Mooncakes 下载后，在独立项目中解析头文件、计算布局和生成绑定的验证。
+0.2 包含 **95 项 MoonBit 测试**，另有独立 CLI 黑盒检查，以及从头生成 SQLite / zlib 绑定的原生集成验证。0.1 发布时还完成了独立项目从 Mooncakes 下载依赖后的使用验证。
 
 具备 Bash、clang、awk、sort 和 diff 的环境还可以运行：
 
@@ -180,7 +198,7 @@ source → lex → cp → cparse → layout → codegen
 
 ## 后续方向与反馈
 
-下一步希望补充更多真实库的回归用例、明确不支持声明的诊断，并探索把函数式宏转换为 MoonBit 函数。按值结构体调用需要结合 FFI 能力进一步设计，目前不属于已支持功能。
+下一步希望扩大原生平台与真实库的回归覆盖，补充解析诊断，并探索把函数式宏转换为 MoonBit 函数。按值结构体调用需要结合 FFI 能力进一步设计，目前不属于已支持功能。
 
 欢迎通过 [Issues](https://github.com/icyaaaww/moonbind/issues) 提交最小头文件、MoonBit 版本、完整命令、目标 ABI，以及预期和实际输出。修改代码前可参考 [开发约定](AGENTS.md) 和 [英文设计说明](README.mbt.md)。
 

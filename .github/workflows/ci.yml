@@ -35,8 +35,11 @@ jobs:
       - name: Check the layout table against clang
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang
+          sudo apt-get install -y -qq clang zlib1g-dev
           bash scripts/verify-layout.sh
+
+      - name: Regenerate, compile and run SQLite and zlib bindings
+        run: python3 scripts/verify-workflow.py --native
 
       - name: Format
         run: moon fmt --check

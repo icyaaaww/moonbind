@@ -1,0 +1,9 @@
+{
+  "header": "examples/greet/greet.h",
+  "out": "_build/greet-v02",
+  "target": "x86_64",
+  "include_paths": [],
+  "defines": [],
+  "allow_functions": ["greet_version", "greet_open", "greet_hello", "greet_count", "greet_close"],
+  "native_sources": ["../../examples/greet/greet.c"]
+}

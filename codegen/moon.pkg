@@ -1,4 +1,5 @@
 import {
+  "moonbitlang/core/json",
   "icyaaaww/moonbind/ast",
   "icyaaaww/moonbind/layout",
 }
