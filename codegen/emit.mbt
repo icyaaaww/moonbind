@@ -61,11 +61,21 @@ struct Gen {
 
 ///|
 fn Gen::new(target : @layout.Target, module : @ast.CModule) -> Gen {
+  // C libraries may typedef names such as Byte. Never redeclare MoonBit's
+  // builtin types; scalar aliases already resolve to those builtin types.
+  let used_types : Map[String, Bool] = Map([])
+  for
+    name in [
+      "Unit", "Bool", "Byte", "Bytes", "Char", "String", "Int", "UInt", "Int16",
+      "UInt16", "Int32", "UInt32", "Int64", "UInt64", "Float", "Double", "Json",
+    ] {
+    used_types[name] = true
+  }
   {
     target,
     module,
     record_types: Map([]),
-    used_types: Map([]),
+    used_types,
     used_values: Map([]),
     handles: [],
     refusals: [],

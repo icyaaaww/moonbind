@@ -232,3 +232,14 @@ test "function renaming retains C linkage and rejects collisions" {
     names.get("library_add") == Some("add"),
   )
 }
+
+///|
+test "C typedef Byte does not shadow the builtin MoonBit type" {
+  let m = header(
+    "typedef unsigned char Byte; typedef Byte Bytef; Byte get_byte(Bytef x);",
+  )
+  let (text, _) = @codegen.generate(m, @layout.Target::sysv64())
+  assert_false(text.contains("pub type Byte ="))
+  assert_true(text.contains("pub type Bytef = Byte"))
+  assert_true(text.contains("fn get_byte(x : Byte) -> Byte"))
+}

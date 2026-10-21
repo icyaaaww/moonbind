@@ -8,6 +8,8 @@
 - Compare old and new headers for signature, record layout, enum, typedef, constant and binding-support changes; report transitively affected functions.
 - Configure additional native C sources without editing the generated manifest.
 - Fix record attributes after a struct body being ignored.
+- Avoid redeclaring builtin MoonBit types for C aliases such as zlib's `Byte`.
+- Use native target expression syntax in generated and example manifests.
 - Add CLI workflow regression checks and fresh native SQLite/zlib integration projects to CI.
 - Include a Chinese Mooncakes/GitHub README and the 0.2 usage guide.
 

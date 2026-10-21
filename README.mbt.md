@@ -255,7 +255,7 @@ moon test  --target wasm-gc
 ```
 
 The tool itself builds for wasm-gc. The bindings it generates are `extern "C"`
-declarations, so their packages declare `supported_targets = [ "native" ]` and
+declarations, so their packages declare `supported_targets = "native"` and
 the demos are run with `--target native`.
 
 ## Roadmap

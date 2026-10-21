@@ -16,7 +16,7 @@ pub fn package_manifest(native_sources~ : Array[String] = []) -> String {
     }
   }
   let quoted = sources.map(s => s.to_json().stringify())
-  "supported_targets = [ \"native\" ]\n\noptions(\n  \"native-stub\": [ " +
+  "supported_targets = \"native\"\n\noptions(\n  \"native-stub\": [ " +
   quoted.join(", ") +
   " ],\n)\n"
 }

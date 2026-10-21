@@ -110,7 +110,7 @@ def sqlite(work):
   "integration/sqlite/bindings" @sqlite,
   "moonbitlang/core/encoding/utf8",
 }
-supported_targets = [ "native" ]
+supported_targets = "native"
 pkgtype(kind: "executable")
 options("native-stub": ["sqlite3.c"])
 ''', encoding="utf-8")
@@ -134,7 +134,7 @@ fn main raise {{
     (project / "main/moon.pkg").write_text('''import {
   "integration/zlib/bindings" @zlib,
 }
-supported_targets = [ "native" ]
+supported_targets = "native"
 pkgtype(kind: "executable")
 options("link": {"native": {"cc-link-flags": "-lz"}})
 ''', encoding="utf-8")
