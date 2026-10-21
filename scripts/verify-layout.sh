@@ -37,7 +37,13 @@ targets="sysv64:x86_64-unknown-linux-gnu aapcs64:aarch64-unknown-linux-gnu wasm3
 # `__va_list_tag` and `__NSConstantString_tag` are dropped: they are not in the
 # header, and `__`-prefixed tags are not something `moonbind` will ever emit.
 from_clang() {
-  "$CLANG" -cc1 -triple "$1" -fdump-record-layouts-complete -fsyntax-only "$2" 2>&1 |
+  # Force sizeof after the entire declaration has been parsed. The "complete"
+  # dump can print a record before a trailing packed attribute is applied.
+  # Names come from the independently recorded fixture rows, not our output.
+  {
+    printf '#include "%s/%s"\n' "$PWD" "$2"
+    awk '/^\/\/ +(struct|union) / { print "int moonbind_force_" n++ "[sizeof(" $2 " " $3 ")];" }' "$2"
+  } | "$CLANG" -cc1 -triple "$1" -x c -fdump-record-layouts -fsyntax-only - 2>&1 |
     awk '
       function flush() { if (keep && row != "") print row; row = ""; keep = 0 }
       /^ *[0-9]+ \| (struct|union) / {
