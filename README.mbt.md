@@ -73,7 +73,8 @@ headers          #include  decls     & sizes
 Layout is checked against the real compiler rather than trusted. `--verify`
 prints the generator's layout table for a header in clang's own compact form,
 and `scripts/verify-layout.sh` produces the clang table with
-`clang -cc1 -triple … -fdump-record-layouts-complete -fsyntax-only` and diffs
+`clang -cc1 -triple … -fdump-record-layouts -fsyntax-only` after forcing record
+sizes with `sizeof`, and diffs
 the two. The script skips cleanly when clang is not installed, so it is a
 developer check rather than a build dependency.
 

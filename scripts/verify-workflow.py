@@ -106,11 +106,14 @@ def sqlite(work):
     cli("testdata/sqlite/sqlite3.h", "--out", project / "bindings", "--check")
     shutil.copy2(ROOT / "examples/sqlite3-demo/main.mbt", project / "main/main.mbt")
     shutil.copy2(ROOT / "examples/sqlite3-demo/sqlite3.c", project / "main/sqlite3.c")
-    (project / "main/moon.pkg.json").write_text(json.dumps({
-        "is-main": True, "supported-targets": ["native"],
-        "import": [{"path": "integration/sqlite/bindings", "alias": "sqlite"}, "moonbitlang/core/encoding/utf8"],
-        "native-stub": ["sqlite3.c"],
-    }), encoding="utf-8")
+    (project / "main/moon.pkg").write_text('''import {
+  "integration/sqlite/bindings" @sqlite,
+  "moonbitlang/core/encoding/utf8",
+}
+supported_targets = [ "native" ]
+pkgtype(kind: "executable")
+options("native-stub": ["sqlite3.c"])
+''', encoding="utf-8")
     result = run(["moon", "run", "main", "--target", "native"], cwd=project)
     for row in ["Tycho — 5 craters", "Copernicus — 3 craters", "Kepler — 2 craters", "3 rows"]:
         assert row in result.stdout, result.stdout
@@ -128,11 +131,13 @@ fn main raise {{
   println("adler32: \\{{actual}}")
 }}
 ''', encoding="utf-8")
-    (project / "main/moon.pkg.json").write_text(json.dumps({
-        "is-main": True, "supported-targets": ["native"],
-        "import": [{"path": "integration/zlib/bindings", "alias": "zlib"}],
-        "link": {"native": {"cc-link-flags": "-lz"}},
-    }), encoding="utf-8")
+    (project / "main/moon.pkg").write_text('''import {
+  "integration/zlib/bindings" @zlib,
+}
+supported_targets = [ "native" ]
+pkgtype(kind: "executable")
+options("link": {"native": {"cc-link-flags": "-lz"}})
+''', encoding="utf-8")
     result = run(["moon", "run", "main", "--target", "native"], cwd=project)
     assert str(expected) in result.stdout, result.stdout
     print("PASS zlib: regenerated official-header bindings -> native compile/link -> adler32 matches Python zlib")
