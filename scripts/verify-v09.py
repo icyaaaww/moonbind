@@ -69,6 +69,11 @@ def main():
     settings = d.read_json(released / "moonbind.json")
     settings["managed_outputs"]["resource_open"] = "resource_release:0:released"
     d.write_json(released / "moonbind.json", settings)
+    project = d.read_json(released / "moonbind.project.json")
+    project["runtime_checks"] = [{"name": "released close error", "package": "main",
+                                 "functions": ["resource_open", "resource_release", "live_count", "close_count"],
+                                 "verifies": "failed release closes the wrapper and frees the C object; repeated close/use never reenters C"}]
+    d.write_json(released / "moonbind.project.json", project)
     (released / "main/main.mbt").write_text('''fn main raise {
       let p = match @lib.resource_open_managed(0) { Ok(Some(p)) => p; _ => abort("open") }
       assert_true(try { p.close(); false } catch { @lib.ResourceCloseFailed(9) => true; _ => false })

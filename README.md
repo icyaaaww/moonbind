@@ -77,6 +77,7 @@ _build/generated-greet/
 ├── bindings.mbt   # 函数、类型和常量绑定
 ├── strings.mbt    # C 字符串复制辅助接口
 ├── stub.c         # C 侧辅助函数
+├── moonbind-config.h # 与模板库编译单元同步的配置宏
 ├── moon.pkg       # 生成包的依赖和原生目标配置
 ├── moonbind-report.json # 结构化生成报告
 └── .moonbind-state.json # 检测手工修改的生成基线
