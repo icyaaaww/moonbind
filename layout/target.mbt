@@ -6,12 +6,8 @@
 //! not call sequences.
 
 ///|
-/// | The three targets the layout engine understands.
-///
-/// All three are LP64-shaped except wasm32, which is ILP32. Windows is
-/// deliberately absent: `long double` on MSVC is `double` and every record
-/// containing one would need a second code path, which is worth adding only
-/// once the LP64/ILP32 split is solid.
+/// Layout data models. Win64 covers ordinary records only; CLI rejects
+/// bitfields, packing/alignment extensions and enums outside signed int.
 pub(all) enum Abi {
   /// System V AMD64: `long` and pointers are 64 bits, `long double` is 16
   /// bytes with 16-byte alignment.
@@ -21,6 +17,8 @@ pub(all) enum Abi {
   Aapcs64
   /// wasm32: 32-bit pointers, 32-bit `long`.
   Wasm32
+  /// Windows x64: 64-bit pointers, 32-bit long.
+  Win64
 } derive(Debug, Eq)
 
 ///|
@@ -53,16 +51,20 @@ pub fn Target::parse(name : String) -> Target? {
   match name {
     "x86_64" | "sysv64" | "native" => Some(Target::sysv64())
     "aarch64" | "arm64" | "aapcs64" => Some(Target::aapcs64())
+    "win64" => Some(Target::win64())
     "wasm32" | "wasm" => Some(Target::wasm32())
     _ => None
   }
 }
 
 ///|
-/// | Width in bytes of `long`, which is the one integer whose size follows the
-/// pointer on every target moonbind supports.
+/// Width of C long. Win64 uses LLP64; pointer width alone is insufficient.
 pub fn Target::long_bytes(self : Target) -> Int32 {
-  self.pointer_bits / 8
+  if self.abi == Win64 {
+    4
+  } else {
+    self.pointer_bits / 8
+  }
 }
 
 ///|
@@ -82,4 +84,9 @@ pub fn Target::scalar_size(self : Target, kind : @ast.CIntKind) -> Int32 {
 /// | Alignment of an integer kind is its size on every supported ABI.
 pub fn Target::scalar_align(self : Target, kind : @ast.CIntKind) -> Int32 {
   self.scalar_size(kind)
+}
+
+///|
+pub fn Target::win64() -> Target {
+  { abi: Win64, pointer_bits: 64, }
 }

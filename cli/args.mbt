@@ -9,7 +9,7 @@
 ///|
 /// | The version the binary reports. Kept in step with `moon.mod` by hand, and
 /// | by a test that reads the manifest.
-pub let version : String = "0.5.0"
+pub let version : String = "0.8.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -37,7 +37,12 @@ pub(all) struct Options {
   pub html : Bool
   pub ownership : Map[String, String]
   pub buffers : Map[String, String]
+  pub status_codes : Map[String, String]
+  pub out_params : Map[String, String]
+  pub null_params : Map[String, String]
+  pub callbacks : Map[String, String]
   pub copy_strings : Array[String]
+  pub trace_calls : Bool
   pub fail_on : String
 } derive(Debug, Eq)
 
@@ -56,7 +61,7 @@ pub fn usage() -> String {
   let lines = [
     "moonbind — generate MoonBit FFI bindings from a C header", "", "Usage:", "  moonbind <header.h> [options]",
     "", "Options:", "  --out <dir>         write a complete package into <dir>",
-    "  --target <name>     x86_64 (default), aarch64, or wasm32", "  --include <dir>     add a directory to the include search path",
+    "  --target <name>     x86_64 (default), aarch64, win64, or wasm32", "  --include <dir>     add a directory to the include search path",
     "  --define <M=V>      define a macro before parsing", "  --report            list the declarations that were left out, and why",
     "  --verify            print the record layout table instead of bindings", "  --version           print the version and exit",
     "  --help              print this text and exit", "", "A declaration is left out rather than emitted approximately: a binding",
@@ -68,7 +73,10 @@ pub fn usage() -> String {
     "  --bridge               generate a C adapter and compile-time layout checks",
     "  --compare <old.h>      compare current header against old header", "  --html                 offline comparison report on stdout",
     "  --own <create=free>    generate scoped cleanup (explicit contract)", "  --buffer <fn=ptr:len>  derive byte length from a Bytes parameter",
-    "  --copy-string <fn>    copy a borrowed NUL string result immediately", "  --fail-on <rule>        none, removed, changed (includes removals), any",
+    "  --status <fn=code>    map signed int success code to Result", "  --out-param <fn=arg>  preserve output handle on success and error",
+    "  --null-param <fn=a,b> pass NULL for configured pointer parameters", "  --callback <fn=cb:ctx:abort> synchronous context-first int callback",
+    "  --trace-calls         record generated C adapter entries (opt-in)", "  --copy-string <fn>    copy a borrowed NUL string result immediately",
+    "  --fail-on <rule>        none, removed, changed (includes removals), any",
   ]
   let buf = StringBuilder()
   for i, l in lines {
@@ -103,7 +111,12 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let mut html = false
   let ownership : Map[String, String] = Map([])
   let buffers : Map[String, String] = Map([])
+  let status_codes : Map[String, String] = Map([])
+  let out_params : Map[String, String] = Map([])
+  let null_params : Map[String, String] = Map([])
+  let callbacks : Map[String, String] = Map([])
   let copy_strings : Array[String] = []
+  let mut trace_calls = false
   let mut fail_on = "none"
   let mut i = 0
   // A `--out` with no value is the one error that can be spotted in the loop;
@@ -114,6 +127,10 @@ pub fn parse_args(argv : Array[String]) -> Args {
     match arg {
       "--help" | "-h" => return Help
       "--version" | "-V" => return Version
+      "--trace-calls" => {
+        trace_calls = true
+        i = i + 1
+      }
       "--strict" => {
         strict = true
         i = i + 1
@@ -153,6 +170,10 @@ pub fn parse_args(argv : Array[String]) -> Args {
       | "--fail-on"
       | "--own"
       | "--buffer"
+      | "--status"
+      | "--out-param"
+      | "--null-param"
+      | "--callback"
       | "--copy-string"
       | "--rename" =>
         if i + 1 >= argv.length() {
@@ -170,7 +191,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                   return Bad(
                     "unknown target: " +
                     value +
-                    " (expected x86_64, aarch64 or wasm32)",
+                    " (expected x86_64, aarch64, win64 or wasm32)",
                   )
               }
             "--copy-string" => copy_strings.push(value)
@@ -186,6 +207,42 @@ pub fn parse_args(argv : Array[String]) -> Args {
               } else {
                 buffers[parts[0].to_string()] = parts[1].to_string()
               }
+            }
+            "--status" => {
+              let parts = value.split("=").to_array()
+              if parts.length() != 2 ||
+                parts[0].is_empty() ||
+                parts[1].is_empty() {
+                return Bad(arg + " requires name=value")
+              }
+              status_codes[parts[0].to_string()] = parts[1].to_string()
+            }
+            "--out-param" => {
+              let parts = value.split("=").to_array()
+              if parts.length() != 2 ||
+                parts[0].is_empty() ||
+                parts[1].is_empty() {
+                return Bad(arg + " requires name=value")
+              }
+              out_params[parts[0].to_string()] = parts[1].to_string()
+            }
+            "--null-param" => {
+              let parts = value.split("=").to_array()
+              if parts.length() != 2 ||
+                parts[0].is_empty() ||
+                parts[1].is_empty() {
+                return Bad(arg + " requires name=value")
+              }
+              null_params[parts[0].to_string()] = parts[1].to_string()
+            }
+            "--callback" => {
+              let parts = value.split("=").to_array()
+              if parts.length() != 2 ||
+                parts[0].is_empty() ||
+                parts[1].is_empty() {
+                return Bad(arg + " requires name=value")
+              }
+              callbacks[parts[0].to_string()] = parts[1].to_string()
             }
             "--rename" => {
               let parts = value.split("=").to_array()
@@ -270,9 +327,14 @@ pub fn parse_args(argv : Array[String]) -> Args {
         strict,
         bridge,
         html,
+        trace_calls,
         fail_on,
         ownership,
         buffers,
+        status_codes,
+        out_params,
+        null_params,
+        callbacks,
         copy_strings,
       })
   }

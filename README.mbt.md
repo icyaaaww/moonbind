@@ -18,15 +18,15 @@ moonbind sqlite3.h --out examples/sqlite3 --target x86_64
 The header is the only positional argument. `--out` is a directory, and the
 generator writes the whole MoonBit package into it: `bindings.mbt`,
 `strings.mbt`, `stub.c` and `moon.pkg`. `--target` is the ABI the binding is
-laid out for — `x86_64` (the default), `aarch64` or `wasm32` — because a
+laid out for — `x86_64` (the default), `aarch64`, `win64` or `wasm32` — because a
 binding is only correct for the machine whose struct layout it mirrors.
 
-> **Status: 0.5.0.** A bounded C declaration/layout/binding tool with opt-in
+> **Status: 0.8.0.** A bounded C declaration/layout/binding tool with opt-in
 > adapters, explicit call contracts and reproducible project validation. It is
 > not a complete C compiler or an automatic memory-safety proof.
 >
 > Start with `python moonbind.py init ../demo --template cjson`, then
-> `python moonbind.py validate ../demo`. See the [0.5 guide](docs/v0.5.md).
+> `python moonbind.py validate ../demo`. See the [0.8 guide](docs/v0.8.md).
 > The Python standard-library driver orchestrates tools; parsing, layout and
 > all binding/adapter/wrapper generation remain implemented in MoonBit.
 
@@ -218,8 +218,9 @@ union P9  0 c  0:0-19 a [sizeof=4, align=4]
 
 `moonbind.py` provides init, doctor, generate, validate and report-check commands.
 Five standalone templates cover SQLite, zlib, cJSON, ownership contracts and
-nested records. Native validation targets LP64 Linux/macOS; Windows LLP64 is
-explicitly rejected by the environment probe.
+nested records. Version 0.8 adds calls and sqlite-callback templates, source-preserving
+upgrade reports, C entry tracing and Windows x64 LLP64/MSVC validation. See
+[the 0.8 support matrix](docs/v0.8.md); synchronous callbacks must not escape.
 
 Generator options `--own create=free`, `--buffer fn=pointer:length`, and
 `--copy-string fn` generate scoped cleanup, derived byte counts and immediate
@@ -266,10 +267,10 @@ complete binary compatibility verdicts.
 
 ### Install the Mooncakes library
 
-The published module is `icyaaaww/moonbind@0.5.0`:
+The 0.8 module version is `icyaaaww/moonbind@0.8.0`:
 
 ```sh
-moon add icyaaaww/moonbind@0.5.0
+moon add --upgrade icyaaaww/moonbind@0.8.0
 ```
 
 Import the stage you need, for example `"icyaaaww/moonbind/layout"` or

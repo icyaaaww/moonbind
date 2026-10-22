@@ -411,8 +411,13 @@ pub fn generate_bridge(
       init.write_string(bridge_range(ty, arg))
       init.write_string("  out->\{f.path} = \{arg};\n")
       let offset = bridge_offset(m, target, @ast.Record(tag), f.path)
+      let c_offset = if target.abi == @layout.Win64 {
+        portable_offset(m, @ast.Record(tag), f.path)
+      } else {
+        "offsetof(\{ct}, \{f.path})"
+      }
       c.write_string(
-        "_Static_assert(offsetof(\{ct}, \{f.path}) == \{offset}, \"\{tag}.\{f.name}: offset mismatch\");\n",
+        "_Static_assert(\{c_offset} == \{offset}, \"\{tag}.\{f.name}: offset mismatch\");\n",
       )
       let (field_size, _) = @layout.size_of(target, m, ty)
       c.write_string(
@@ -516,4 +521,40 @@ pub fn generate_bridge(
     }
   }
   { bindings, c_source: c.to_string(), adapted, skipped: skips, records: tags, }
+}
+
+///|
+fn portable_offset(
+  m : @ast.CModule,
+  start : @ast.CType,
+  path : String,
+) -> String {
+  let tokens = path
+    .replace_all(old="[", new=".")
+    .replace_all(old="]", new="")
+    .split(".")
+    .to_array()
+  let mut ty = start
+  let terms : Array[String] = []
+  for token in tokens {
+    match strip_typedefs(m, ty) {
+      @ast.Record(tag) => {
+        let field = m.records.get(tag).unwrap().fields.filter(f => {
+            f.name == token.to_string()
+          })[0]
+        terms.push(
+          "offsetof(" + c_record(m, tag) + ", " + token.to_string() + ")",
+        )
+        ty = field.ty
+      }
+      @ast.Array(inner, _) => {
+        terms.push(
+          token.to_string() + " * sizeof(" + c_decl(m, inner, "") + ")",
+        )
+        ty = inner
+      }
+      _ => ()
+    }
+  }
+  "(" + terms.join(" + ") + ")"
 }

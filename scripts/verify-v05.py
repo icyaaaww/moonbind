@@ -25,7 +25,7 @@ def checks(work, native=False):
     projects = {}
     for template in ("contracts", "nested", "sqlite", "zlib", "cjson"):
         project = work / template
-        cli("init", project, "--template", template)
+        cli("init", project, "--template", template, "--target", d.host_target() if native else "x86_64")
         cli("init", project, "--template", template, ok=False)
         cli("generate", project)
         cli("generate", project, "--check")

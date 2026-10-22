@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+- Generate explicit signed-int status, single T** output and optional-NULL wrappers; preserve handles on error. Support status-returning destructors with distinct cleanup/both-error cases.
+- Generate synchronous context-first int callbacks with capture-safe context retention, reentrancy, and delayed MoonBit error propagation. Add a real SQLite callback template without handwritten call adapters.
+- Add opt-in C adapter entry tracing, independently reported from declared test associations.
+- Add upgrade reports checking current contracts in a temporary directory and mapping changes to runtime checks without replacing bindings. Add source-backed install launchers.
+- Add Windows x64 LLP64/MSVC native validation, ordinary record layout checks and portable nested-array offset assertions. Unsupported Windows record extensions fail explicitly.
+- Add three-platform CI configuration and native positive/negative regressions. Independent developer trials remain pending.
+- Public API: new Options contract fields, optional generate contract arguments, call_adapters, Abi::Win64 and Target::win64.
+
 ## 0.5.0
 
 - Add a standard-library Python project driver: init, doctor, generate, validate, report-check. MoonBit remains responsible for parsing, layout and code generation.

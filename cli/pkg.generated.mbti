@@ -73,7 +73,12 @@ pub(all) struct Options {
   html : Bool
   ownership : Map[String, String]
   buffers : Map[String, String]
+  status_codes : Map[String, String]
+  out_params : Map[String, String]
+  null_params : Map[String, String]
+  callbacks : Map[String, String]
   copy_strings : Array[String]
+  trace_calls : Bool
   fail_on : String
 } derive(Eq, @debug.Debug)
 

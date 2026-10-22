@@ -32,6 +32,7 @@ pub fn config_args(
     if ![
         "header", "out", "target", "include_paths", "defines", "allow_functions",
         "native_sources", "rename_functions", "strict", "bridge", "fail_on", "ownership",
+        "status_codes", "out_params", "null_params", "callbacks", "trace_calls",
         "buffers", "copy_strings",
       ].contains(key) {
       raise Failed("unknown configuration field: " + key)
@@ -105,7 +106,15 @@ pub fn config_args(
     }
     _ => raise Failed("rename_functions must be an object")
   }
-  for (key, flag) in [("ownership", "--own"), ("buffers", "--buffer")] {
+  for
+    (key, flag) in [
+      ("status_codes", "--status"),
+      ("out_params", "--out-param"),
+      ("null_params", "--null-param"),
+      ("callbacks", "--callback"),
+      ("ownership", "--own"),
+      ("buffers", "--buffer"),
+    ] {
     match fields.get(key) {
       None => ()
       Some(Object(values)) => {
@@ -128,8 +137,8 @@ pub fn config_args(
       _ => raise Failed(key + " must be an object")
     }
   }
-  for key in ["strict", "bridge"] {
-    match fields.get(key) {
+  for key in ["strict", "bridge", "trace-calls"] {
+    match fields.get(if key == "trace-calls" { "trace_calls" } else { key }) {
       None | Some(False) => ()
       Some(True) => if !(comparing && key == "bridge") { args.push("--" + key) }
       _ => raise Failed(key + " must be a boolean")

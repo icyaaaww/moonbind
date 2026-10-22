@@ -41,8 +41,30 @@ fn emit_contracts(
   buffers : Map[String, String],
   copy_strings : Array[String],
 ) -> Unit {
+  if ownership.values().any(v => v.contains(":")) {
+    if gen.used_types.contains("MoonBindCleanupError") {
+      contract_error(gen, "ownership", "MoonBindCleanupError type collision")
+      return
+    }
+    gen.used_types["MoonBindCleanupError"] = true
+    line(
+      out, "pub(all) suberror MoonBindCleanupError { CleanupFailed(Int); CleanupDuringError(Int, Error) }",
+    )
+  }
   for create in contract_keys(ownership) {
-    let free = ownership.get(create).unwrap()
+    let disposal = ownership.get(create).unwrap().split(":").to_array()
+    let free = disposal[0].to_string()
+    let status = if disposal.length() == 2 {
+      Some(disposal[1].to_string())
+    } else {
+      None
+    }
+    if disposal.length() > 2 || (status is Some(v) && !status_literal(v)) {
+      contract_error(
+        gen, create, "destructor success code must be signed 32-bit",
+      )
+      continue
+    }
     let f = gen.module.function_named(create)
     let d = gen.module.function_named(free)
     match (f, d, gen.emitted_names.get(create), gen.emitted_names.get(free)) {
@@ -50,7 +72,8 @@ fn emit_contracts(
         let ret = strip_typedefs(gen.module, f.ret)
         if !(ret is @ast.Pointer(_)) ||
           d.params.length() != 1 ||
-          strip_typedefs(gen.module, d.ret) != @ast.Void ||
+          strip_typedefs(gen.module, d.ret) !=
+          (if status is Some(_) { @ast.Int(@ast.CI32) } else { @ast.Void }) ||
           strip_typedefs(gen.module, d.params[0].ty) != ret ||
           points_at_char(gen.module, ret) {
           contract_error(
@@ -76,13 +99,31 @@ fn emit_contracts(
         )
         line(out, "  let mb_handle = " + call + "(" + args.join(", ") + ")")
         line(out, "  if mb_handle.is_null() { return None }")
+        let cleanup = if status is Some(v) {
+          "let mb_status = " +
+          dispose +
+          "(mb_handle); if mb_status != " +
+          v +
+          " { raise CleanupFailed(mb_status) }"
+        } else {
+          dispose + "(mb_handle)"
+        }
+        let on_error = if status is Some(v) {
+          "let mb_status = " +
+          dispose +
+          "(mb_handle); if mb_status != " +
+          v +
+          " { raise CleanupDuringError(mb_status, e) }; raise e"
+        } else {
+          dispose + "(mb_handle); raise e"
+        }
         line(
           out,
           "  let mb_result = try { mb_action(mb_handle) } catch { e => { " +
-          dispose +
-          "(mb_handle); raise e } }",
+          on_error +
+          " } }",
         )
-        line(out, "  " + dispose + "(mb_handle)")
+        line(out, "  " + cleanup)
         line(out, "  Some(mb_result)\n}\n")
       }
       _ =>

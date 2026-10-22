@@ -47,7 +47,7 @@ pub fn stub_source() -> String {
     "// so the collector follows it, and C writes the pointer straight into it.",
     "moonbit_bytes_t moonbind_make_slot(void) {", "  moonbit_bytes_t slot = moonbit_make_bytes_raw(sizeof(void *));",
     "  memset(slot, 0, sizeof(void *));", "  return slot;", "}", "", "void *moonbind_read_slot(moonbit_bytes_t slot) {",
-    "  void *p;", "  memcpy(&p, slot, sizeof p);", "  return p;", "}",
+    "  void *p;", "  memcpy(&p, slot, sizeof p);", "  return p;", "}", "const char *moonbind_cstr_at(const char *const *p, int32_t index) { return p ? p[index] : NULL; }",
   ]
   join_lines(lines)
 }
@@ -62,7 +62,13 @@ pub fn strings_source() -> String {
     "/// while the pointer is still good, is the only safe moment.", "#borrow(s)",
     "extern \"C\" fn moonbind_copy_cstr(s : VoidPtr) -> Bytes = \"moonbind_copy_cstr\"",
     "", "/// Copy a string returned by C. An empty result means C returned NULL.",
-    "pub fn copy_cstr(s : VoidPtr) -> Bytes {", "  moonbind_copy_cstr(s)", "}",
+    "pub fn copy_cstr(s : VoidPtr) -> Bytes {", "  moonbind_copy_cstr(s)", "}", "#borrow(p)",
+    "extern \"C\" fn moonbind_cstr_at(p : VoidPtr, index : Int) -> VoidPtr = \"moonbind_cstr_at\"",
+    "/// Copy a borrowed C char** during its valid lifetime. Count must not exceed the actual array length.",
+    "/// NULL array/elements become None. This does not validate C pointers or infer bounds.",
+    "pub fn copy_cstr_array(p : VoidPtr, count : Int) -> Array[Bytes?] {", "  if count < 0 { abort(\"negative C string array length\") }",
+    "  let result : Array[Bytes?] = []", "  for i in 0..<count { let value = moonbind_cstr_at(p, i); result.push(if value.is_null() { None } else { Some(copy_cstr(value)) }) }",
+    "  result", "}",
   ]
   join_lines(lines)
 }

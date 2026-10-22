@@ -40,6 +40,15 @@ fn run_bridge(
     { ..selected, functions: selectable, },
     options.rename_functions,
   )
+  if options.trace_calls {
+    raise Failed("trace-calls requires direct mode")
+  }
+  if !options.status_codes.is_empty() ||
+    !options.out_params.is_empty() ||
+    !options.null_params.is_empty() ||
+    !options.callbacks.is_empty() {
+    raise Failed("call contracts require direct mode")
+  }
   if !options.buffers.is_empty() || !options.copy_strings.is_empty() {
     raise Failed("buffer/string contracts require direct binding mode")
   }

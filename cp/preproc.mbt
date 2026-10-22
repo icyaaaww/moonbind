@@ -168,6 +168,10 @@ fn Preprocessor::install_predefined(self : Preprocessor) -> Unit {
     defs.push(("_WIN32", "1"))
     if p.pointer_bits == 64 {
       defs.push(("_WIN64", "1"))
+      // MSVC x64 uses the default x64 convention for these spellings.
+      // Do not erase them on other targets or erase __vectorcall.
+      defs.push(("__cdecl", ""))
+      defs.push(("__stdcall", ""))
     }
   }
   if p.pointer_bits == 64 && !p.windows {

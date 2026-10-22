@@ -3,7 +3,7 @@
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.5.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.8.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 [English / 技术设计详解](README.mbt.md) · [Mooncakes 包文档](https://mooncakes.io/docs/icyaaaww/moonbind) · [示例代码](examples) · [反馈问题](https://github.com/icyaaaww/moonbind/issues)
@@ -12,29 +12,27 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-当前版本为 **0.5.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+当前版本为 **0.8.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
 
-## 0.5 新增：建立项目、运行验证、追踪证据
+## 0.8：接入真实回调，检查升级影响
 
-- **项目命令**：初始化、环境诊断、生成、原生验证与旧报告检查。
-- **显式约定**：配置创建/释放配对、字节缓冲区长度和借用字符串复制，生成对应包装函数。
-- **结构体扩展**：嵌套记录、固定数组、窄整数和枚举，通过 C 适配层按值调用。
-- **真实库模板**：SQLite、zlib、cJSON，加上资源清理和嵌套结构体示例。
-- **可追溯报告**：记录来源位置、工具链、分阶段退出码、作者声明的测试关联以及 SHA-256 文件快照。
-- **项目迁移**：相对头文件和包含路径，保持项目结构即可迁移；Linux/macOS 原生验证纳入 CI。
-
-详见 [0.5 使用指南与支持边界](docs/v0.5.md)、[0.3 升级检查](docs/v0.3.md) 和 [更新记录](CHANGELOG.md)。
-
-在源码仓库运行（Python 3.10+、MoonBit、C11 编译器）：
+- **C 调用契约**：输出句柄、可选 NULL、状态码 Result、带状态的释放函数；错误分支保留资源句柄。
+- **同步回调**：生成 C 上下文转接器，支持捕获状态、重复回调和重入；MoonBit 错误在 C 返回后重新抛出。
+- **真实 SQLite 示例**：查询回调、open/prepare/close 包装由生成器产出，无需为这些调用手写适配。
+- **调用记录**：可选 C 入口次数，独立于作者声明的测试关联和断言结果。
+- **升级报告**：识别受影响函数、契约和测试，在临时目录检查新契约，保留已有绑定。
+- **Windows x64**：新增 LLP64/MSVC 路径，与 Linux/macOS 原生项目共用驱动器。
 
 ```sh
 moon update
-python moonbind.py init ../my-cjson --template cjson
-python moonbind.py validate ../my-cjson
-python moonbind.py report-check ../my-cjson
+python moonbind.py init ../my-query --template sqlite-callback
+python moonbind.py validate ../my-query
+python moonbind.py report-check ../my-query
 ```
 
-打开 `../my-cjson/reports/validation.html` 查看验证结果。`validate` 会执行项目代码；`report-check` 检查快照是否因文件变化而失效。原生项目模板面向 LP64 Linux/macOS，Windows 可生成和检查类型，暂不支持 LLP64 原生验证。报告不等同于完整的 ABI 或内存安全证明。
+打开 `../my-query/reports/validation.html` 查看执行证据。需要 Python 3.10+、MoonBit 和 C11 编译环境；Windows 需要 MSVC Build Tools 与 Windows SDK。回调仅支持同线程、调用期间有效的明确契约，生成器不会从头文件推断生命周期。
+
+详见 [0.8 使用指南、安装入口与支持边界](docs/v0.8.md)、[0.5 项目工作流](docs/v0.5.md) 与 [更新记录](CHANGELOG.md)。自动化测试不代表真实用户试用；试用记录尚待补充。
 
 ## 能解决什么问题
 
@@ -91,7 +89,7 @@ _build/generated-greet/
 在已有 MoonBit 模块中安装：
 
 ```sh
-moon add icyaaaww/moonbind@0.5.0
+moon add icyaaaww/moonbind@0.8.0
 ```
 
 按需在调用方的 `moon.pkg` 中导入子包；模块根包不提供生成器 API：
@@ -168,7 +166,7 @@ moon test --target wasm-gc
 moon fmt --check
 ```
 
-0.5 包含 **113 项 MoonBit 测试**，另有独立 CLI 检查和五套消费项目验证。CI 覆盖 Linux/macOS 原生调用、报告失效、失败路径与项目迁移。真实用户试用仍待执行，任务见 [试用说明](docs/user-trial.md)。
+0.8 包含 **117 项 MoonBit 测试**，另有独立 CLI 与原生消费项目验证。新增 CI 配置覆盖 Linux/macOS/Windows；以当前提交实际运行结果为准。真实用户试用仍待执行，任务见 [试用说明](docs/user-trial.md)。
 
 具备 Bash、clang、awk、sort 和 diff 的环境还可以运行：
 

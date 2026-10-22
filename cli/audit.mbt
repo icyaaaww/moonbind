@@ -57,6 +57,11 @@ fn with_context(report : Json, options : Options) -> Json {
         "fail_on": options.fail_on,
         "ownership": options.ownership,
         "buffers": options.buffers,
+        "status_codes": options.status_codes,
+        "out_params": options.out_params,
+        "null_params": options.null_params,
+        "callbacks": options.callbacks,
+        "trace_calls": options.trace_calls,
         "copy_strings": options.copy_strings,
       }
       Json::object(fields)
@@ -81,6 +86,7 @@ fn target_name(t : @layout.Target) -> String {
   match t.abi {
     SysV64 => "x86_64"
     Aapcs64 => "aarch64"
+    Win64 => "win64"
     Wasm32 => "wasm32"
   }
 }

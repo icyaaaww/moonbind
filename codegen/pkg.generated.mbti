@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn call_adapters(@ast.CModule, String, callbacks? : Map[String, String], trace? : Bool) -> String
+
 pub fn const_name(String) -> String
 
 pub fn field_name(String) -> String
@@ -16,7 +18,7 @@ pub fn float_type(@ast.CFloatKind) -> String
 
 pub fn function_name(String) -> String
 
-pub fn generate(@ast.CModule, @layout.Target, function_names? : Map[String, String], ownership? : Map[String, String], buffers? : Map[String, String], copy_strings? : Array[String]) -> (String, Array[Skip])
+pub fn generate(@ast.CModule, @layout.Target, function_names? : Map[String, String], ownership? : Map[String, String], buffers? : Map[String, String], status_codes? : Map[String, String], out_params? : Map[String, String], null_params? : Map[String, String], callbacks? : Map[String, String], copy_strings? : Array[String]) -> (String, Array[Skip])
 
 pub fn generate_bridge(@ast.CModule, @layout.Target, String, function_names? : Map[String, String], ownership? : Map[String, String]) -> Bridge
 

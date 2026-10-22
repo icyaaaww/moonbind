@@ -22,6 +22,26 @@ pub fn run(options : Options) -> String raise RunError {
     @cp.Failed(err) =>
       raise Failed("could not read " + options.header + ": " + err)
   }
+  if options.target.abi == @layout.Win64 {
+    for _, record in parsed.records {
+      if record.complete &&
+        (
+          record.fields.is_empty() ||
+          record.pack is Some(_) ||
+          record.align is Some(_) ||
+          record.fields.any(f => f.bit_width is Some(_))
+        ) {
+        raise Failed(
+          "win64 supports ordinary records only; bitfields, packed/aligned and empty records need explicit adapters",
+        )
+      }
+    }
+    for _, e in parsed.enums {
+      if e.items.any(i => i.value < -2147483648L || i.value > 2147483647L) {
+        raise Failed("win64 enum values must fit signed int")
+      }
+    }
+  }
   if options.strict && !parsed.diagnostics.is_empty() {
     raise Failed(diagnostic_text(parsed))
   }
@@ -83,14 +103,19 @@ pub fn run(options : Options) -> String raise RunError {
   }
   let selected = selected_module(parsed, options.allow_functions)
   validate_renames(selected, options.rename_functions)
-  let (text, skips) = @codegen.generate(
+  let (raw_text, skips) = @codegen.generate(
     selected,
     options.target,
     function_names=options.rename_functions,
     ownership=options.ownership,
     buffers=options.buffers,
+    status_codes=options.status_codes,
+    out_params=options.out_params,
+    null_params=options.null_params,
+    callbacks=options.callbacks,
     copy_strings=options.copy_strings,
   )
+  let mut text = raw_text
   for skip in skips {
     if skip.reason.has_prefix("contract:") {
       raise Failed(skip.name + ": " + skip.reason)
@@ -118,6 +143,20 @@ pub fn run(options : Options) -> String raise RunError {
       )
     }
   }
+  if options.trace_calls {
+    for f in selected.exported_functions() {
+      if skips.any(s => s.name == f.name) {
+        raise Failed(
+          "trace-calls requires all selected functions to be supported: " +
+          f.name,
+        )
+      }
+      text = text.replace_all(
+        old="= \"" + f.name + "\"",
+        new="= \"moonbind_trace_" + f.name + "\"",
+      )
+    }
+  }
   if options.report && !options.json {
     for s in skips {
       eprintln("left out: \{s.name} — \{s.reason}")
@@ -131,13 +170,28 @@ pub fn run(options : Options) -> String raise RunError {
   match options.out {
     None => ()
     Some(dir) => {
+      let adapter = if options.trace_calls || !options.callbacks.is_empty() {
+        let cwd = @env.current_dir().unwrap_or("")
+        adapter_macros(options) +
+        @codegen.call_adapters(
+          selected,
+          relative_path(config_path(cwd, dir), config_path(cwd, options.header)),
+          callbacks=options.callbacks,
+          trace=options.trace_calls,
+        )
+      } else {
+        ""
+      }
       let files : Map[String, String] = Map([
         ("bindings.mbt", text),
         ("strings.mbt", @codegen.strings_source()),
-        ("stub.c", @codegen.stub_source()),
+        ("stub.c", @codegen.stub_source() + "\n" + adapter),
         (
           "moon.pkg",
-          @codegen.package_manifest(native_sources=options.native_sources),
+          @codegen.package_manifest(
+            native_sources=options.native_sources,
+            stub_flags=adapter_flags(options, dir),
+          ),
         ),
         ("moonbind-report.json", report.stringify(indent=2) + "\n"),
         ("bridge.c", "/* Bridge disabled for this package. */\n"),
@@ -177,6 +231,7 @@ pub fn platform_for(target : @layout.Target) -> @cp.Platform {
   match target.abi {
     @layout.SysV64 => @cp.Platform::lp64()
     @layout.Aapcs64 => @cp.Platform::lp64()
+    @layout.Win64 => @cp.Platform::win64()
     @layout.Wasm32 => @cp.Platform::wasm32()
   }
 }
@@ -194,4 +249,51 @@ pub fn summary(parsed : @ast.CModule, skips : Array[@codegen.Skip]) -> String {
     buf.write_string(", \{skips.length()} declarations left out")
   }
   buf.to_string()
+}
+
+///|
+fn adapter_macros(options : Options) -> String raise RunError {
+  let out = StringBuilder()
+  for define in options.defines {
+    let parts = define.split("=").to_array()
+    let name = parts[0].to_string()
+    if name.is_empty() || define.contains("\n") || define.contains("\r") {
+      raise Failed("invalid adapter macro")
+    }
+    for i, c in name {
+      if !(c >= 'a' && c <= 'z') &&
+        !(c >= 'A' && c <= 'Z') &&
+        c != '_' &&
+        !(i > 0 && c >= '0' && c <= '9') {
+        raise Failed("invalid adapter macro name")
+      }
+    }
+    let value = if parts.length() == 1 {
+      "1"
+    } else {
+      parts[1:].to_owned().map(p => p.to_string()).join("=")
+    }
+    out.write_string("#define " + name + " " + value + "\n")
+  }
+  out.to_string()
+}
+
+///|
+fn adapter_flags(options : Options, dir : String) -> String raise RunError {
+  let cwd = @env.current_dir().unwrap_or("")
+  let flags : Array[String] = []
+  for path in options.include_paths {
+    let absolute = config_path(cwd, path)
+    if absolute.contains("\"") ||
+      absolute.contains("\n") ||
+      absolute.contains("\r") {
+      raise Failed("unsupported include path")
+    }
+    flags.push(
+      "-I\"" +
+      relative_path(module_root(config_path(cwd, dir)), absolute) +
+      "\"",
+    )
+  }
+  flags.join(" ")
 }
