@@ -104,6 +104,7 @@ pub(all) struct CModule {
   pub sources : Array[String]
   pub diagnostics : Array[Diagnostic]
   pub static_definitions : Array[CFnDecl]
+  pub function_locations : Map[String, Diagnostic]
 } derive(Debug)
 
 ///|
@@ -118,6 +119,7 @@ pub fn CModule::new() -> CModule {
     sources: [],
     diagnostics: [],
     static_definitions: [],
+    function_locations: Map([]),
   }
 }
 

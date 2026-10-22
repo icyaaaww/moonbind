@@ -55,6 +55,7 @@ struct Gen {
   /// Functions left out, with the reason.
   skips : Array[Skip]
   /// Declarations written.
+  emitted_names : Map[String, String]
   function_names : Map[String, String]
   mut emitted : Int32
 }
@@ -81,6 +82,7 @@ fn Gen::new(target : @layout.Target, module : @ast.CModule) -> Gen {
     refusals: [],
     skips: [],
     function_names: Map([]),
+    emitted_names: Map([]),
     emitted: 0,
   }
 }
@@ -413,6 +415,7 @@ fn emit_function(buf : StringBuilder, gen : Gen, f : @ast.CFnDecl) -> Unit {
   let name = gen.claim_value(
     gen.function_names.get(f.name).unwrap_or(function_name(f.name)),
   )
+  gen.emitted_names[f.name] = name
   line(buf, "/// C: \{moon_signature(f)}")
   if borrowed.length() > 0 {
     line(buf, "#borrow(\{borrowed.join(", ")})")
@@ -549,6 +552,9 @@ pub fn generate(
   module : @ast.CModule,
   target : @layout.Target,
   function_names~ : Map[String, String] = Map([]),
+  ownership~ : Map[String, String] = Map([]),
+  buffers~ : Map[String, String] = Map([]),
+  copy_strings~ : Array[String] = [],
 ) -> (String, Array[Skip]) {
   let gen = Gen::new(target, module)
   for key, value in function_names {
@@ -598,6 +604,7 @@ pub fn generate(
     emit_function(functions, gen, f)
   }
 
+  emit_contracts(functions, gen, ownership, buffers, copy_strings)
   let out = StringBuilder()
   emit_header(out, module, target)
   if !types.is_empty() {

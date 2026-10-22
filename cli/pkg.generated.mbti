@@ -71,6 +71,9 @@ pub(all) struct Options {
   strict : Bool
   bridge : Bool
   html : Bool
+  ownership : Map[String, String]
+  buffers : Map[String, String]
+  copy_strings : Array[String]
   fail_on : String
 } derive(Eq, @debug.Debug)
 

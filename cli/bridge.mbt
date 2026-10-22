@@ -1,7 +1,6 @@
 ///|
-/// Require real filesystem headers for native compilation. Absolute paths
-/// deliberately bind this generated adapter to a checkout; regenerate after
-/// moving it. No header or macro string is executed as a shell command here.
+/// Require real filesystem headers and emit a relative include path. Keep the
+/// header/output tree together when moving the project. No header or macro string is executed as a shell command here.
 fn run_bridge(
   parsed : @ast.CModule,
   options : Options,
@@ -41,16 +40,25 @@ fn run_bridge(
     { ..selected, functions: selectable, },
     options.rename_functions,
   )
+  if !options.buffers.is_empty() || !options.copy_strings.is_empty() {
+    raise Failed("buffer/string contracts require direct binding mode")
+  }
   let result = @codegen.generate_bridge(
     selected,
     options.target,
-    header,
+    relative_path(config_path(cwd, dir), header),
     function_names=options.rename_functions,
+    ownership=options.ownership,
   )
   if result.adapted.is_empty() {
     raise Failed(
       "no selected functions can be adapted by the simple-record bridge",
     )
+  }
+  for skip in result.skipped {
+    if skip.reason.has_prefix("contract:") {
+      raise Failed(skip.name + ": " + skip.reason)
+    }
   }
   if options.strict && !result.skipped.is_empty() {
     raise Failed(result.skipped.map(s => s.name + ": " + s.reason).join("\n"))
@@ -83,7 +91,11 @@ fn run_bridge(
     if absolute.contains("\"") || absolute.contains("\n") {
       raise Failed("unsupported include directory characters")
     }
-    flags.push("-I\"" + absolute + "\"")
+    flags.push(
+      "-I\"" +
+      relative_path(module_root(config_path(cwd, dir)), absolute) +
+      "\"",
+    )
   }
   let report : Json = {
     "schema_version": 1,
@@ -91,6 +103,15 @@ fn run_bridge(
     "mode": "bridge",
     "target": target_name(options.target),
     "adapted_functions": result.adapted,
+    "sources": parsed.sources,
+    "functions": result.adapted.map(name => {
+      let entry : Json = {
+        "name": name,
+        "status": "generated",
+        "source": source_location(parsed, name),
+      }
+      entry
+    }),
     "records": result.records,
     "skipped": result.skipped.map(s => { "name": s.name, "reason": s.reason }),
     "diagnostics": diagnostics_json(parsed),

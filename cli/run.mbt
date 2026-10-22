@@ -87,7 +87,15 @@ pub fn run(options : Options) -> String raise RunError {
     selected,
     options.target,
     function_names=options.rename_functions,
+    ownership=options.ownership,
+    buffers=options.buffers,
+    copy_strings=options.copy_strings,
   )
+  for skip in skips {
+    if skip.reason.has_prefix("contract:") {
+      raise Failed(skip.name + ": " + skip.reason)
+    }
+  }
   if options.strict {
     for skip in skips {
       if selected.functions.any(f => f.name == skip.name) {

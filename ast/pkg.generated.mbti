@@ -71,6 +71,7 @@ pub(all) struct CModule {
   sources : Array[String]
   diagnostics : Array[Diagnostic]
   static_definitions : Array[CFnDecl]
+  function_locations : Map[String, Diagnostic]
 } derive(@debug.Debug)
 pub fn CModule::add_function(Self, CFnDecl) -> Unit
 pub fn CModule::add_typedef(Self, CTypedef) -> Unit

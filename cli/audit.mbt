@@ -55,6 +55,9 @@ fn with_context(report : Json, options : Options) -> Json {
         "strict": options.strict,
         "bridge": options.bridge,
         "fail_on": options.fail_on,
+        "ownership": options.ownership,
+        "buffers": options.buffers,
+        "copy_strings": options.copy_strings,
       }
       Json::object(fields)
     }
@@ -133,6 +136,7 @@ pub fn generation_report(
     functions.push({
       "name": f.name,
       "signature": function_text(f),
+      "source": source_location(m, f.name),
       "status": status,
       "reason": reason,
     })
@@ -154,6 +158,7 @@ pub fn generation_report(
       "skipped_functions": skipped,
       "excluded_functions": excluded,
     },
+    "sources": m.sources,
     "functions": functions,
     "records": records,
   }
@@ -389,4 +394,19 @@ pub fn review_text(report : Json) -> String {
     _ => ()
   }
   out.to_string()
+}
+
+///|
+fn source_location(m : @ast.CModule, name : String) -> Json {
+  match m.function_locations.get(name) {
+    Some(d) =>
+      {
+        "file": d.file,
+        "line": d.line,
+        "column": d.column,
+        "token": d.token,
+        "scope": d.message,
+      }
+    None => Json::null()
+  }
 }

@@ -16,9 +16,9 @@ pub fn float_type(@ast.CFloatKind) -> String
 
 pub fn function_name(String) -> String
 
-pub fn generate(@ast.CModule, @layout.Target, function_names? : Map[String, String]) -> (String, Array[Skip])
+pub fn generate(@ast.CModule, @layout.Target, function_names? : Map[String, String], ownership? : Map[String, String], buffers? : Map[String, String], copy_strings? : Array[String]) -> (String, Array[Skip])
 
-pub fn generate_bridge(@ast.CModule, @layout.Target, String, function_names? : Map[String, String]) -> Bridge
+pub fn generate_bridge(@ast.CModule, @layout.Target, String, function_names? : Map[String, String], ownership? : Map[String, String]) -> Bridge
 
 pub fn handle_name(@ast.CModule, @ast.CType) -> String
 
@@ -60,6 +60,8 @@ pub(all) struct Bridge {
   skipped : Array[Skip]
   records : Array[String]
 }
+
+type BridgeLeaf
 
 type Gen
 

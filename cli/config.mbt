@@ -31,7 +31,8 @@ pub fn config_args(
   for key, _ in fields {
     if ![
         "header", "out", "target", "include_paths", "defines", "allow_functions",
-        "native_sources", "rename_functions", "strict", "bridge", "fail_on",
+        "native_sources", "rename_functions", "strict", "bridge", "fail_on", "ownership",
+        "buffers", "copy_strings",
       ].contains(key) {
       raise Failed("unknown configuration field: " + key)
     }
@@ -58,6 +59,7 @@ pub fn config_args(
       ("defines", "--define"),
       ("allow_functions", "--allow"),
       ("native_sources", "--native-source"),
+      ("copy_strings", "--copy-string"),
     ] {
     match fields.get(key) {
       None => ()
@@ -102,6 +104,29 @@ pub fn config_args(
       }
     }
     _ => raise Failed("rename_functions must be an object")
+  }
+  for (key, flag) in [("ownership", "--own"), ("buffers", "--buffer")] {
+    match fields.get(key) {
+      None => ()
+      Some(Object(values)) => {
+        let names : Array[String] = []
+        for name, _ in values {
+          names.push(name)
+        }
+        names.sort()
+        for name in names {
+          match values.get(name) {
+            Some(String(value)) if name != "" && value != "" => {
+              args.push(flag)
+              args.push(name + "=" + value)
+            }
+            _ =>
+              raise Failed(key + " must map function names to nonempty strings")
+          }
+        }
+      }
+      _ => raise Failed(key + " must be an object")
+    }
   }
   for key in ["strict", "bridge"] {
     match fields.get(key) {

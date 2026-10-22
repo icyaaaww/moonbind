@@ -222,7 +222,18 @@ fn Cursor::parse_declaration(self : Cursor) -> Unit {
     // only layout-relevant case is on a record, which the specifiers own.
     let attrs2 = Attrs::new()
     self.skip_attributes(attrs2)
+    let location = self.peek()
     let d = self.parse_declarator()
+    if d.fn_signature() is Some(_) {
+      self.module.function_locations[d.name] = {
+        code: "declaration",
+        file: location.file,
+        line: location.line,
+        column: location.col,
+        token: d.name,
+        message: "preprocessed declaration token location",
+      }
+    }
     let trailing = Attrs::new()
     self.skip_attributes(trailing)
     if first {

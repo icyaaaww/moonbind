@@ -9,7 +9,7 @@
 ///|
 /// | The version the binary reports. Kept in step with `moon.mod` by hand, and
 /// | by a test that reads the manifest.
-pub let version : String = "0.3.0"
+pub let version : String = "0.5.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -35,6 +35,9 @@ pub(all) struct Options {
   pub strict : Bool
   pub bridge : Bool
   pub html : Bool
+  pub ownership : Map[String, String]
+  pub buffers : Map[String, String]
+  pub copy_strings : Array[String]
   pub fail_on : String
 } derive(Debug, Eq)
 
@@ -64,7 +67,8 @@ pub fn usage() -> String {
     "  --strict               reject parser diagnostics and skipped selected functions",
     "  --bridge               generate a C adapter and compile-time layout checks",
     "  --compare <old.h>      compare current header against old header", "  --html                 offline comparison report on stdout",
-    "  --fail-on <rule>        none, removed, changed (includes removals), any",
+    "  --own <create=free>    generate scoped cleanup (explicit contract)", "  --buffer <fn=ptr:len>  derive byte length from a Bytes parameter",
+    "  --copy-string <fn>    copy a borrowed NUL string result immediately", "  --fail-on <rule>        none, removed, changed (includes removals), any",
   ]
   let buf = StringBuilder()
   for i, l in lines {
@@ -97,6 +101,9 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let mut strict = false
   let mut bridge = false
   let mut html = false
+  let ownership : Map[String, String] = Map([])
+  let buffers : Map[String, String] = Map([])
+  let copy_strings : Array[String] = []
   let mut fail_on = "none"
   let mut i = 0
   // A `--out` with no value is the one error that can be spotted in the loop;
@@ -144,6 +151,9 @@ pub fn parse_args(argv : Array[String]) -> Args {
       | "--allow"
       | "--native-source"
       | "--fail-on"
+      | "--own"
+      | "--buffer"
+      | "--copy-string"
       | "--rename" =>
         if i + 1 >= argv.length() {
           missing = Some(arg)
@@ -163,6 +173,20 @@ pub fn parse_args(argv : Array[String]) -> Args {
                     " (expected x86_64, aarch64 or wasm32)",
                   )
               }
+            "--copy-string" => copy_strings.push(value)
+            "--own" | "--buffer" => {
+              let parts = value.split("=").to_array()
+              if parts.length() != 2 ||
+                parts[0].is_empty() ||
+                parts[1].is_empty() {
+                return Bad(arg + " requires name=value")
+              }
+              if arg == "--own" {
+                ownership[parts[0].to_string()] = parts[1].to_string()
+              } else {
+                buffers[parts[0].to_string()] = parts[1].to_string()
+              }
+            }
             "--rename" => {
               let parts = value.split("=").to_array()
               if parts.length() != 2 ||
@@ -247,6 +271,9 @@ pub fn parse_args(argv : Array[String]) -> Args {
         bridge,
         html,
         fail_on,
+        ownership,
+        buffers,
+        copy_strings,
       })
   }
 }
