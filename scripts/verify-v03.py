@@ -40,6 +40,14 @@ def checks(work):
     generated = work / "normal"
     w.cli(plain, "--out", generated, "--strict")
     w.cli(plain, "--out", generated, "--strict", "--check")
+    # Simulate the 0.2 five-file baseline and verify non-destructive migration.
+    state_path = generated / ".moonbind-state.json"
+    state = json.loads(state_path.read_text())
+    state["files"] = [f for f in state["files"] if f["name"] != "bridge.c"]
+    state_path.write_text(json.dumps(state), encoding="utf-8")
+    (generated / "bridge.c").unlink()
+    w.cli(plain, "--out", generated, "--strict")
+    w.cli(plain, "--out", generated, "--strict", "--check")
     print("PASS located diagnostics, strict refusal, no unsafe output, review gates (exit 3), offline HTML, unchanged/incomplete analysis")
 
 

@@ -10,3 +10,8 @@ third-party fixtures, not MoonBind implementation code.
 
 The native integration check generates bindings from these headers and calls
 `adler32` in the system zlib library. CI installs `zlib1g-dev` for that purpose.
+
+Generation uses `Z_SOLO=1`, zlib's standalone header configuration, so the
+parser does not need host-specific POSIX headers. The selected `adler32`
+declaration has the same ABI in the system zlib library. This test covers
+that checksum interface, not zlib's filesystem APIs or every configuration.

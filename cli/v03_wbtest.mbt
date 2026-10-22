@@ -1,4 +1,24 @@
 ///|
+test "missing includes propagate into module diagnostics" {
+  let m = header("#include <missing_moonbind_header.h>\nint visible(void);")
+  assert_true(m.diagnostics.any(d => d.code == "preprocessor"))
+}
+
+///|
+test "chained macro types and replacement calls are rescanned" {
+  let m = header(
+    "#define BASE long\n#define ALIAS BASE\n#define ID(x) x\n#define TYPE ID(ALIAS)\nstruct Entry { TYPE offset; };\nint use(struct Entry p);",
+  )
+  assert_true(m.diagnostics.is_empty())
+  assert_eq(
+    @layout.layout_record(@layout.Target::sysv64(), m, "Entry").unwrap().size,
+    8,
+  )
+  let recursive = header("#define A B\n#define B A\nA mystery;")
+  assert_false(recursive.diagnostics.is_empty())
+}
+
+///|
 test "malformed and ABI changing declarations are diagnosed" {
   for
     source in [

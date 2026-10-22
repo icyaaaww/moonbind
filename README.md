@@ -162,7 +162,7 @@ moon test --target wasm-gc
 moon fmt --check
 ```
 
-0.3 包含 **106 项 MoonBit 测试**，另有独立 CLI 黑盒检查，以及从头生成 SQLite / zlib 绑定的原生集成验证。0.1 发布时还完成了独立项目从 Mooncakes 下载依赖后的使用验证。
+0.3 包含 **108 项 MoonBit 测试**，另有独立 CLI 黑盒检查，以及从头生成 SQLite / zlib 绑定的原生集成验证。0.1 发布时还完成了独立项目从 Mooncakes 下载依赖后的使用验证。
 
 具备 Bash、clang、awk、sort 和 diff 的环境还可以运行：
 

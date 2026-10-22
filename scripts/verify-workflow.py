@@ -122,7 +122,9 @@ options("native-stub": ["sqlite3.c"])
 
 def zlib_native(work):
     project = native_project(work, "zlib")
-    cli("testdata/zlib/zlib.h", "--out", project / "bindings", "--allow", "adler32")
+    # zlib's documented standalone configuration avoids host POSIX headers.
+    # adler32's declaration/ABI is the same in the linked system library.
+    cli("testdata/zlib/zlib.h", "--define", "Z_SOLO=1", "--out", project / "bindings", "--allow", "adler32", "--strict")
     expected = zlib.adler32(b"MoonBind 0.2")
     (project / "main/main.mbt").write_text(f'''///|
 fn main raise {{

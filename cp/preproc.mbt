@@ -791,7 +791,11 @@ fn Preprocessor::expand_tokens(
         match m.kind {
           Object => {
             let body = self.substitute(m.body, [], t, depth)
-            out.append(body)
+            // Rescan replacement tokens while disabling the active macro;
+            // this expands aliases and terminates direct/indirect recursion.
+            self.macros.remove(t.text)
+            out.append(self.expand_tokens(body, depth + 1))
+            self.macros[t.text] = m
             i = i + 1
           }
           Function(params, variadic) => {
@@ -830,7 +834,9 @@ fn Preprocessor::expand_tokens(
               )
             }
             let body = self.substitute(m.body, supplied, t, depth)
-            out.append(body)
+            self.macros.remove(t.text)
+            out.append(self.expand_tokens(body, depth + 1))
+            self.macros[t.text] = m
             i = next
           }
         }

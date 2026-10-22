@@ -2,6 +2,8 @@
 
 ## 0.3.0
 
+- Rescan chained macro replacements with active-macro suppression. Surface preprocessing diagnostics, including missing includes, instead of silently discarding them.
+
 - Add located diagnostics for known unsupported syntax and malformed declarations. Refuse generation/layout verification for diagnosed modules; strict mode also rejects skipped selected functions.
 - Generate optional C adapters for simple records passed/returned by value and static function definitions, with explicit allocation/access/free helpers and compile-time layout assertions.
 - Add comparison policies (`none`, `removed`, `changed`, `any`), exit code 3, and standalone escaped HTML review reports. Static declarations participate in comparisons; bodies are not compared.

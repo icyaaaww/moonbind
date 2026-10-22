@@ -53,5 +53,15 @@ pub fn load_header_with_cache(
   )
   module.sources.clear()
   module.sources.append(pp.files)
+  for message in pp.diagnostics {
+    module.diagnostics.push({
+      code: "preprocessor",
+      file: path,
+      line: 1,
+      column: 1,
+      token: "",
+      message,
+    })
+  }
   module
 }
