@@ -224,15 +224,21 @@ def validate(root):
         report["doctor"] = doctor(root)
         if report["doctor"]["status"] != "passed":
             raise RuntimeError("Environment probe failed; inspect reports/doctor.json")
-        for stage, command in [("typecheck", ["moon", "check", "--target", "native"]),
-                               ("compile_link", ["moon", "build", "--target", "native"])]:
+        # A fresh target directory prevents stale native objects from being
+        # mistaken for validation of changed transitive C includes.
+        (root / "_build").mkdir(exist_ok=True)
+        build_dir = Path(tempfile.mkdtemp(prefix="validation-", dir=root / "_build"))
+        build_flags = ["--target", "native", "--target-dir", str(build_dir)]
+        report["build_directory"] = str(build_dir)
+        for stage, command in [("typecheck", ["moon", "check", *build_flags]),
+                               ("compile_link", ["moon", "build", *build_flags])]:
             result = run(command, cwd=root)
             report["stages"][stage] = result
             require(result)
         runtime = []
         report["runtime_checks"] = runtime
         for test in p["runtime_checks"]:
-            result = run(["moon", "run", test["package"], "--target", "native"], cwd=root)
+            result = run(["moon", "run", test["package"], *build_flags], cwd=root)
             runtime.append({**test, **result})
             require(result)
         if not runtime:
