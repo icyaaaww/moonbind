@@ -565,6 +565,8 @@ pub fn generate(
   out_params~ : Map[String, String] = Map([]),
   null_params~ : Map[String, String] = Map([]),
   callbacks~ : Map[String, String] = Map([]),
+  output_buffers~ : Map[String, String] = Map([]),
+  managed_outputs~ : Map[String, String] = Map([]),
   copy_strings~ : Array[String] = [],
 ) -> (String, Array[Skip]) {
   let gen = Gen::new(target, module)
@@ -619,6 +621,10 @@ pub fn generate(
     functions, gen, status_codes, out_params, null_params, callbacks,
   )
   emit_contracts(functions, gen, ownership, buffers, copy_strings)
+  emit_output_buffers(functions, gen, output_buffers)
+  emit_managed_outputs(
+    functions, gen, managed_outputs, out_params, status_codes, null_params,
+  )
   let out = StringBuilder()
   emit_header(out, module, target)
   if !types.is_empty() {

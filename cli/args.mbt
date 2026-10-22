@@ -9,7 +9,7 @@
 ///|
 /// | The version the binary reports. Kept in step with `moon.mod` by hand, and
 /// | by a test that reads the manifest.
-pub let version : String = "0.8.0"
+pub let version : String = "0.9.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -36,6 +36,8 @@ pub(all) struct Options {
   pub bridge : Bool
   pub html : Bool
   pub ownership : Map[String, String]
+  pub output_buffers : Map[String, String]
+  pub managed_outputs : Map[String, String]
   pub buffers : Map[String, String]
   pub status_codes : Map[String, String]
   pub out_params : Map[String, String]
@@ -76,6 +78,7 @@ pub fn usage() -> String {
     "  --status <fn=code>    map signed int success code to Result", "  --out-param <fn=arg>  preserve output handle on success and error",
     "  --null-param <fn=a,b> pass NULL for configured pointer parameters", "  --callback <fn=cb:ctx:abort> synchronous context-first int callback",
     "  --trace-calls         record generated C adapter entries (opt-in)", "  --copy-string <fn>    copy a borrowed NUL string result immediately",
+    "  --output-buffer <fn=dst:cap:src:len:is_error:max_bytes> bounded output", "  --managed-output <fn=free:success:retained|released> tracked output handle",
     "  --fail-on <rule>        none, removed, changed (includes removals), any",
   ]
   let buf = StringBuilder()
@@ -110,6 +113,8 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let mut bridge = false
   let mut html = false
   let ownership : Map[String, String] = Map([])
+  let output_buffers : Map[String, String] = Map([])
+  let managed_outputs : Map[String, String] = Map([])
   let buffers : Map[String, String] = Map([])
   let status_codes : Map[String, String] = Map([])
   let out_params : Map[String, String] = Map([])
@@ -169,6 +174,8 @@ pub fn parse_args(argv : Array[String]) -> Args {
       | "--native-source"
       | "--fail-on"
       | "--own"
+      | "--output-buffer"
+      | "--managed-output"
       | "--buffer"
       | "--status"
       | "--out-param"
@@ -195,7 +202,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                   )
               }
             "--copy-string" => copy_strings.push(value)
-            "--own" | "--buffer" => {
+            "--own" | "--buffer" | "--output-buffer" | "--managed-output" => {
               let parts = value.split("=").to_array()
               if parts.length() != 2 ||
                 parts[0].is_empty() ||
@@ -204,6 +211,10 @@ pub fn parse_args(argv : Array[String]) -> Args {
               }
               if arg == "--own" {
                 ownership[parts[0].to_string()] = parts[1].to_string()
+              } else if arg == "--output-buffer" {
+                output_buffers[parts[0].to_string()] = parts[1].to_string()
+              } else if arg == "--managed-output" {
+                managed_outputs[parts[0].to_string()] = parts[1].to_string()
               } else {
                 buffers[parts[0].to_string()] = parts[1].to_string()
               }
@@ -331,6 +342,8 @@ pub fn parse_args(argv : Array[String]) -> Args {
         fail_on,
         ownership,
         buffers,
+        output_buffers,
+        managed_outputs,
         status_codes,
         out_params,
         null_params,

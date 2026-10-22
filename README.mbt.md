@@ -1,3 +1,5 @@
+> **0.9.0** adds bounded output buffers, managed T** resources, pinned SQLite/cJSON/Zstandard recipes, and actionable upgrade review. See [the 0.9 guide](docs/v0.9.md) for current workflows and limitations.
+
 # moonbind
 
 [中文首页与快速开始](README.md) · [Mooncakes package](https://mooncakes.io/docs/icyaaaww/moonbind)
@@ -267,10 +269,10 @@ complete binary compatibility verdicts.
 
 ### Install the Mooncakes library
 
-The 0.8 module version is `icyaaaww/moonbind@0.8.0`:
+The 0.8 module version is `icyaaaww/moonbind@0.9.0`:
 
 ```sh
-moon add --upgrade icyaaaww/moonbind@0.8.0
+moon add --upgrade icyaaaww/moonbind@0.9.0
 ```
 
 Import the stage you need, for example `"icyaaaww/moonbind/layout"` or

@@ -20,7 +20,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "0.8.0"
+VERSION = "0.9.0"
 IGNORE = {"_build", ".git", ".mooncakes", "__pycache__", "reports"}
 
 
@@ -71,6 +71,7 @@ def require(result):
 
 def load_project(root):
     root = Path(root).resolve()
+    verify_recipe_lock(root)
     p = read_json(root / "moonbind.project.json")
     if not isinstance(p, dict) or set(p) - {"schema_version", "binding_config", "runtime_checks", "template"}:
         raise ValueError("Unknown project configuration fields")
@@ -111,6 +112,37 @@ def load_project(root):
         if not isinstance(check["functions"], list) or not all(isinstance(f, str) for f in check["functions"]):
             raise ValueError("Check functions must be a string array")
     return root, p, config, c
+
+
+def verify_recipe_lock(root):
+    """Check pinned source bytes; this is integrity evidence, not a signature."""
+    path = root / "moonbind.recipe.lock.json"
+    if not path.exists():
+        return
+    lock = read_json(path)
+    if lock.get("schema_version") != 1 or not isinstance(lock.get("files"), list):
+        raise ValueError("Invalid recipe lock: expected schema_version 1 and files")
+    seen = set()
+    for item in lock["files"]:
+        file = inside(root, item["path"])
+        if file in seen or not re.fullmatch(r"[0-9a-f]{64}", item["sha256"]):
+            raise ValueError("Invalid or duplicate recipe source: " + item["path"])
+        seen.add(file)
+        if file.is_symlink() or not file.is_file() or digest(file) != item["sha256"]:
+            raise ValueError("Recipe source changed: " + item["path"] + "; restore the pinned source or review and update its recipe lock before regenerating")
+
+
+def load_recipe(name, target):
+    if name not in {"zstd", "sqlite", "cjson"}:
+        raise ValueError("Unknown recipe: " + name)
+    recipe = read_json(ROOT / "recipes" / (name + ".json"))
+    if recipe["schema_version"] != 1 or target not in recipe["targets"]:
+        raise ValueError("Recipe does not support target " + target)
+    for item in recipe["files"]:
+        source = inside(ROOT, item["source"])
+        if source.is_symlink() or digest(source) != item["sha256"]:
+            raise ValueError("Bundled recipe source checksum mismatch: " + item["source"])
+    return recipe
 
 
 def host_target():
@@ -216,7 +248,7 @@ def inventory(root, generator=False):
             relative = path.relative_to(root).as_posix()
             if path.is_symlink():
                 raise ValueError(f"Snapshot requires regular files: {relative}")
-            if generator and not (path.suffix in {".mbt", ".mbti", ".pkg", ".mod", ".py"}):
+            if generator and not (path.suffix in {".mbt", ".mbti", ".pkg", ".mod", ".py", ".json"}):
                 continue
             if generator and relative.split("/")[0] in {"testdata", "templates", "examples", "docs"}:
                 continue
@@ -232,7 +264,7 @@ def render_report(report):
     return ('<!doctype html><html lang="en"><meta charset="utf-8">'
             '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'">'
             '<title>MoonBind validation</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;padding:20px;color:#182530}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd5dd;padding:10px;text-align:left}pre{white-space:pre-wrap;overflow-wrap:anywhere}h1{color:#184e77}</style>'
-            '<h1>MoonBind 0.8 validation: ' + html.escape(report["status"]) + '</h1>'
+            '<h1>MoonBind 0.9 validation: ' + html.escape(report["status"]) + '</h1>'
             '<p>Compile/link results apply to the tested project. Function coverage below is declared by test authors, not automatically proven. Run report-check before relying on this snapshot.</p>'
             '<table><tr><th>Function</th><th>Generation</th><th>Runtime</th><th>Declared checks</th><th>C adapter entries</th><th>Source</th></tr>'
             + "".join(rows) + '</table><h2>Evidence and SHA-256 snapshot</h2><pre>'
@@ -334,11 +366,14 @@ def report_check(root):
             "scope": "Files only; rerun validate after OS/toolchain/system-library changes. Reports are unsigned."}
 
 
-def init_project(destination, template, target):
+def init_project(destination, template, target, recipe=None):
     destination = Path(destination).resolve()
     if destination.exists():
         raise ValueError("Destination already exists; choose a new directory")
     target = target or host_target()
+    recipe = load_recipe(recipe, target) if recipe else None
+    if recipe:
+        template = recipe["template"]
     if target not in {"x86_64", "aarch64", "win64"}:
         raise ValueError("Project templates support x86_64/aarch64 LP64 or win64 LLP64")
     # Stage the complete project next to destination; never overwrite user work.
@@ -352,7 +387,24 @@ def init_project(destination, template, target):
         module = "moonbind_examples/" + template
         pkg = 'import { "' + module + '/bindings" @lib, "moonbitlang/core/encoding/utf8" }\nsupported_targets = "native"\npkgtype(kind: "executable")\n'
         files = []
-        if template == "sqlite-callback":
+        if template == "zstd":
+            files = [(str(f.relative_to(ROOT)), "vendor/" + f.relative_to(ROOT / "testdata/zstd").as_posix()) for f in sorted((ROOT / "testdata/zstd").rglob("*")) if f.is_file()]
+            functions = ["ZSTD_compress", "ZSTD_decompress", "ZSTD_compressBound", "ZSTD_isError", "ZSTD_versionNumber"]
+            config.update(header="vendor/lib/zstd.h", allow_functions=functions, trace_calls=True,
+                          rename_functions={'ZSTD_compress': 'zstd_compress', 'ZSTD_decompress': 'zstd_decompress', 'ZSTD_compressBound': 'zstd_compress_bound', 'ZSTD_isError': 'zstd_is_error', 'ZSTD_versionNumber': 'zstd_version_number'},
+                          defines=["ZSTD_DISABLE_ASM=1", "ZSTD_DISABLE_DEPRECATE_WARNINGS=1"], native_sources=["../" + dest for _, dest in files if dest.endswith(".c")],
+                          output_buffers={"ZSTD_compress": "dst:dstCapacity:src:srcSize:ZSTD_isError:67108864",
+                                          "ZSTD_decompress": "dst:dstCapacity:src:compressedSize:ZSTD_isError:67108864"})
+            verifies = "Zstandard 1.5.7 byte-for-byte binary/empty/large roundtrip; bounded allocation, small capacity, corrupted/truncated frames"
+        elif template == "sqlite-managed":
+            files = [("testdata/sqlite/sqlite3.h", "vendor/sqlite3.h"), ("examples/sqlite3-demo/sqlite3.c", "vendor/sqlite3.c")]
+            functions = ["sqlite3_open", "sqlite3_close", "sqlite3_prepare_v2", "sqlite3_step", "sqlite3_column_int", "sqlite3_finalize"]
+            config.update(header="vendor/sqlite3.h", native_sources=["../vendor/sqlite3.c"], allow_functions=functions, trace_calls=True,
+                          status_codes={"sqlite3_open": "0", "sqlite3_prepare_v2": "0"},
+                          out_params={"sqlite3_open": "ppDb", "sqlite3_prepare_v2": "ppStmt"}, null_params={"sqlite3_prepare_v2": "pzTail"},
+                          managed_outputs={"sqlite3_open": "sqlite3_close:0:retained", "sqlite3_prepare_v2": "sqlite3_finalize:0:released"})
+            verifies = "SQLite busy close retains usable database; retry after finalize; use-after-close, double-close, borrowed-close, callback error recovery"
+        elif template == "sqlite-callback":
             files = [("testdata/sqlite/sqlite3.h", "vendor/sqlite3.h"), ("examples/sqlite3-demo/sqlite3.c", "vendor/sqlite3.c")]
             functions = ["sqlite3_open", "sqlite3_close", "sqlite3_exec", "sqlite3_prepare_v2", "sqlite3_step", "sqlite3_column_int", "sqlite3_finalize"]
             config.update(header="vendor/sqlite3.h", native_sources=["../vendor/sqlite3.c"], allow_functions=functions, trace_calls=True,
@@ -360,6 +412,14 @@ def init_project(destination, template, target):
                           out_params={"sqlite3_open": "ppDb", "sqlite3_prepare_v2": "ppStmt"},
                           null_params={"sqlite3_exec": "errmsg", "sqlite3_prepare_v2": "pzTail"}, callbacks={"sqlite3_exec": "callback:#3:1"})
             verifies = "real SQLite synchronous row callback, raised MoonBit error, C abort/error, generated output/NULL/status wrappers"
+        elif template == "delivery":
+            files = [("testdata/delivery/api.h", "vendor/api.h"), ("testdata/delivery/api.c", "vendor/api.c")]
+            functions = ["transform", "transform32", "failed", "failed32", "resource_open", "resource_close", "resource_release", "resource_value", "live_count", "close_count"]
+            config.update(native_sources=["../vendor/api.c"], trace_calls=True,
+                          output_buffers={"transform":"dst:capacity:src:length:failed:64", "transform32":"dst:capacity:src:length:failed32:64"},
+                          status_codes={"resource_open":"0"}, out_params={"resource_open":"out"},
+                          managed_outputs={"resource_open":"resource_close:0:retained"})
+            verifies = "32/64-bit output guards; malformed return lengths; retained close failure; error output handles"
         elif template == "calls":
             files = [("testdata/calls/api.h", "vendor/api.h"), ("testdata/calls/api.c", "vendor/api.c")]
             config.update(native_sources=["../vendor/api.c"], trace_calls=True,
@@ -399,22 +459,47 @@ def init_project(destination, template, target):
             config.update(header="vendor/cJSON.h", native_sources=["../vendor/cJSON.c"], allow_functions=functions,
                           ownership={"cJSON_CreateArray": "cJSON_Delete"}, copy_strings=["cJSON_Version"])
             verifies = "owned array creation/size/deletion and copied version 1.7.19"
+        if recipe:
+            config.update(recipe["config"])
+            files = [(item["source"], item["path"]) for item in recipe["files"]]
+            flags = recipe["link_options"][target]
+            if flags:
+                pkg += 'options("link": {"native": {"cc-link-flags": ' + json.dumps(" ".join(flags)) + '}})\n'
         for source, dest in files:
+            inside(staging, dest)
+            (staging / dest).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / source, staging / dest)
         if config.get("native_sources"):
             # Moon requires native stubs inside their package. A tiny include
             # translation unit keeps vendored sources and licenses together.
-            translation_unit = "".join('#include ' + json.dumps(source) + '\n' for source in config["native_sources"])
-            (staging / "bindings/library.c").write_text(translation_unit, encoding="utf-8")
-            config["native_sources"] = ["library.c"]
+            sources = []
+            for i, source in enumerate(config["native_sources"]):
+                name = f"library_{i}.c" if template == "zstd" else "library.c"
+                path = staging / "bindings" / name
+                previous = path.read_text(encoding="utf-8") if path.exists() else ""
+                path.write_text(previous + '#include ' + json.dumps(source) + '\n', encoding="utf-8")
+                if name not in sources:
+                    sources.append(name)
+            config["native_sources"] = sources
         shutil.copy2(ROOT / "templates" / template / "main.mbt", staging / "main/main.mbt")
         (staging / "main/moon.pkg").write_text(pkg, encoding="utf-8")
         (staging / "moon.mod").write_text(f'name = "{module}"\npreferred_target = "native"\n', encoding="utf-8")
+        if template == "zstd":
+            (staging / "file").mkdir()
+            shutil.copy2(ROOT / "templates/zstd/file.mbt", staging / "file/main.mbt")
+            (staging / "file/moon.pkg").write_text('import { "' + module + '/bindings" @lib, "moonbitlang/core/env", "moonbitlang/x/fs" }\nsupported_targets = "native"\npkgtype(kind: "executable")\n', encoding="utf-8")
+            with (staging / "moon.mod").open("a", encoding="utf-8") as manifest:
+                manifest.write('import { "moonbitlang/x@0.5.5" }\n')
         write_json(staging / "moonbind.json", config)
+        if recipe:
+            write_json(staging / "moonbind.recipe.lock.json", {"schema_version": 1, "name": recipe["name"],
+                       "upstream": recipe["upstream"], "target": target, "link_options": recipe["link_options"][target],
+                       "files": [{"path": i["path"], "sha256": i["sha256"]} for i in recipe["files"]]})
+            verify_recipe_lock(staging)
         write_json(staging / "moonbind.project.json", {"schema_version": 1, "binding_config": "moonbind.json", "template": template,
                    "runtime_checks": [{"name": template + " smoke", "package": "main", "functions": functions, "verifies": verifies}]})
         (staging / ".gitignore").write_text("_build/\n.mooncakes/\nreports/\n", encoding="utf-8")
-        (staging / "README.md").write_text("# MoonBind " + template + " example\n\nUse the MoonBind 0.8 source release driver:\n\n```sh\npython /path/to/moonbind/moonbind.py doctor .\npython /path/to/moonbind/moonbind.py validate .\npython /path/to/moonbind/moonbind.py report-check .\n```\n\nValidation executes this project's native code. Review contracts in moonbind.json and assertions in main/main.mbt before using your own library. reports/validation.html is an unsigned snapshot, not a general safety proof. Native templates target LP64 Linux/macOS and MSVC Windows x64 LLP64; zlib is validated only on Linux/macOS with development headers/library.\n", encoding="utf-8")
+        (staging / "README.md").write_text("# MoonBind " + template + " example\n\nUse the MoonBind 0.9 source release driver:\n\n```sh\npython /path/to/moonbind/moonbind.py doctor .\npython /path/to/moonbind/moonbind.py validate .\npython /path/to/moonbind/moonbind.py report-check .\n```\n\nValidation executes this project's native code. Review contracts in moonbind.json and assertions in main/main.mbt before using your own library. reports/validation.html is an unsigned snapshot, not a general safety proof. Native templates target LP64 Linux/macOS and MSVC Windows x64 LLP64; zlib is validated only on Linux/macOS with development headers/library.\n", encoding="utf-8")
         for attempt in range(6):
             if destination.exists():
                 raise ValueError("Destination appeared during initialization; refusing overwrite")
@@ -443,14 +528,17 @@ def upgrade_review(root, old_header):
     if comparison.get("status") == "incomplete" or comparison.get("analysis_complete") is False:
         raise ValueError("Header comparison is incomplete")
     affected = set(comparison.get("affected_functions", []))
+    affected.update(c["symbol"].removeprefix("function:") for c in comparison.get("parameter_renames", []))
     contracts = []
-    for kind in ("ownership", "status_codes", "out_params", "null_params", "callbacks", "buffers", "copy_strings"):
+    for kind in ("ownership", "status_codes", "out_params", "null_params", "callbacks", "buffers", "copy_strings", "output_buffers", "managed_outputs"):
         values = settings.get(kind, {})
         for function in values:
             value = values[function] if isinstance(values, dict) else True
             dependencies = {function}
-            if kind == "ownership":
+            if kind in {"ownership", "managed_outputs"}:
                 dependencies.add(value.split(":", 1)[0])
+            if kind == "output_buffers" and len(value.split(":")) == 6:
+                dependencies.add(value.split(":")[4])
             if dependencies & affected:
                 contracts.append({"kind": kind, "function": function, "value": value,
                                   "action": "Review contract semantics and regenerate; header signatures cannot prove lifetime behavior."})
@@ -471,7 +559,9 @@ def upgrade_review(root, old_header):
     if before != inventory(root):
         raise RuntimeError("Project changed during upgrade review")
     status = "review_required" if affected or contract_check["status"] == "invalid" else "unchanged"
+    actions = upgrade_actions(root, config, settings, project, comparison, contracts, contract_check)
     report = {"schema_version": 1, "generator_version": VERSION, "status": status, "comparison": comparison,
+              "actions": actions, "classification_counts": {k: sum(a["classification"] == k for a in actions) for k in ("must_change", "human_review", "no_detected_impact")},
               "contracts_to_review": contracts, "current_contract_check": contract_check,
               "affected_runtime_checks": [t for t in project["runtime_checks"] if affected & set(t["functions"])],
               "snapshot": before, "old_header_sha256": digest(old_header),
@@ -480,6 +570,55 @@ def upgrade_review(root, old_header):
     write_json(root / "reports/upgrade.json", report)
     (root / "reports/upgrade.html").write_text(render_report(report), encoding="utf-8")
     return report
+
+
+def upgrade_actions(root, config, settings, project, comparison, contracts, contract_check):
+    actions = []
+    bindings = config.parent / settings["out"] / "bindings.mbt"
+    lines = bindings.read_text(encoding="utf-8").splitlines() if bindings.exists() else []
+    changes = {c["symbol"]: c for c in comparison.get("changes", []) + comparison.get("parameter_renames", [])}
+    affected = set(comparison.get("affected_functions", []))
+    affected.update(c["symbol"].removeprefix("function:") for c in comparison.get("parameter_renames", []))
+    functions = affected | set(settings.get("allow_functions", [])) | {c["function"] for c in contracts}
+    for function in sorted(functions):
+        change = changes.get("function:" + function, {})
+        relevant = [c for c in contracts if c["function"] == function]
+        removed = change.get("change") == "removed" and change.get("before", {}).get("binding_status") != "excluded"
+        classification = "must_change" if removed else ("human_review" if function in affected or relevant else "no_detected_impact")
+        locations, suggestions = [], []
+        for c in relevant:
+            pointer = "/" + c["kind"] + "/" + function.replace("~", "~0").replace("/", "~1")
+            locations.append({"file": config.relative_to(root).as_posix(), "json_pointer": pointer, "current": c["value"]})
+            # Only suggest positional parameter renames when all types match.
+            # These remain review items; even unchanged types cannot prove semantics.
+            old = (change.get("before") or {}).get("parameters", [])
+            new = (change.get("after") or {}).get("parameters", [])
+            if c["kind"] in {"buffers", "output_buffers", "out_params", "null_params", "callbacks"} and old and len(old) == len(new) and all(a["type"] == b["type"] for a, b in zip(old, new)):
+                rename = {a["name"]: b["name"] for a, b in zip(old, new) if a["name"] and b["name"] and a["name"] != b["name"]}
+                # Restrict substitution to parameter slots, never error predicates/codes.
+                separator = "," if c["kind"] == "null_params" else ":"
+                count = {"output_buffers": 4, "callbacks": 2}.get(c["kind"], 1000000)
+                parts = c["value"].split(separator)
+                proposed = separator.join(rename.get(v, v) if i < count else v for i, v in enumerate(parts))
+                if proposed != c["value"]:
+                    suggestions.append({"op": "replace", "path": pointer, "expected_old_value": c["value"], "value": proposed,
+                                        "reason": "Parameter renamed at the same position and type; verify semantic contract before applying", "applied": False})
+        raw_names = set()
+        for line in lines:
+            match = re.search(r'fn (\w+)\(.*= "(?:moonbind_trace_)?' + re.escape(function) + '"', line)
+            if match and not match[1].startswith("mb_"):
+                raw_names.add(match[1])
+        locations_generated = [{"file": bindings.relative_to(root).as_posix(), "line": i + 1, "declaration": line.strip()}
+                               for i, line in enumerate(lines) if any(re.search(r'fn (?:\[[^]]*\] )?' + re.escape(n) + r'(?:\(|_(?:bytes|checked|sync|managed)\()', line) for n in raw_names)]
+        actions.append({"function": function, "classification": classification, "configuration": locations,
+                        "generated_declarations": locations_generated, "suggested_config_edits": suggestions,
+                        "runtime_checks": [{"name": t["name"], "package": t["package"], "verifies": t["verifies"]} for t in project["runtime_checks"] if function in t["functions"]],
+                        "action": "Remove or replace selected API and update dependent contracts/call sites" if removed else ("Review source/library semantics and listed contracts, regenerate, then run validate" if classification == "human_review" else "No structural impact detected; runtime/lifetime compatibility is not proven")})
+    if contract_check["status"] == "invalid":
+        actions.insert(0, {"classification": "must_change", "configuration_file": config.relative_to(root).as_posix(),
+                           "action": "Fix contract generation errors before updating bindings", "diagnostics": contract_check["diagnostics"],
+                           "generation_output": contract_check["output"]})
+    return actions
 
 
 def install_launcher(directory):
@@ -509,8 +648,9 @@ def main():
     commands = parser.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Create a new runnable template; refuses existing directories")
     init.add_argument("project")
-    init.add_argument("--template", choices=["sqlite-callback", "calls", "contracts", "nested", "sqlite", "zlib", "cjson"], default="contracts")
+    init.add_argument("--template", choices=["delivery", "zstd", "sqlite-managed", "sqlite-callback", "calls", "contracts", "nested", "sqlite", "zlib", "cjson"], default="contracts")
     init.add_argument("--target", choices=["x86_64", "aarch64", "win64"])
+    init.add_argument("--recipe", choices=["zstd", "sqlite", "cjson"], help="Use a versioned, source-pinned library integration")
     upgrade = commands.add_parser("upgrade", help="Review header upgrade and contracts without overwriting bindings")
     upgrade.add_argument("project")
     upgrade.add_argument("--against", required=True, help="Previous header; preserve its original transitive includes")
@@ -524,7 +664,9 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == "init":
-            result = init_project(args.project, args.template, args.target)
+            if args.recipe and args.template != "contracts":
+                raise ValueError("Use either --template or --recipe")
+            result = init_project(args.project, args.template, args.target, args.recipe)
         elif args.command == "upgrade":
             result = upgrade_review(args.project, args.against)
         elif args.command == "install":

@@ -109,6 +109,8 @@ pub fn run(options : Options) -> String raise RunError {
     function_names=options.rename_functions,
     ownership=options.ownership,
     buffers=options.buffers,
+    output_buffers=options.output_buffers,
+    managed_outputs=options.managed_outputs,
     status_codes=options.status_codes,
     out_params=options.out_params,
     null_params=options.null_params,

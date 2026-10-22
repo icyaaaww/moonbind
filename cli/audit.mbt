@@ -59,6 +59,8 @@ fn with_context(report : Json, options : Options) -> Json {
         "buffers": options.buffers,
         "status_codes": options.status_codes,
         "out_params": options.out_params,
+        "output_buffers": options.output_buffers,
+        "managed_outputs": options.managed_outputs,
         "null_params": options.null_params,
         "callbacks": options.callbacks,
         "trace_calls": options.trace_calls,
@@ -231,6 +233,10 @@ fn api_entries(
     }
     result["function:" + f.name] = {
       "signature": function_text(f),
+      "parameters": f.params.map(p => {
+        "name": p.name,
+        "type": type_text(p.ty),
+      }),
       "binding_status": status,
       "reason": if status == "skipped" {
         skip_reason(skips, f.name)
@@ -286,6 +292,18 @@ fn api_entries(
 }
 
 ///|
+fn abi_identity(entry : Json) -> String {
+  match entry {
+    Object(fields) => {
+      let copy = fields.copy()
+      copy.remove("parameters")
+      copy.to_json().stringify()
+    }
+    _ => entry.stringify()
+  }
+}
+
+///|
 /// Both headers must be parsed with the same ABI and macro settings. This is
 /// a source-level review report, not a complete binary compatibility checker.
 pub fn compare_headers(
@@ -318,12 +336,13 @@ pub fn compare_headers(
   keys.sort()
   let changed : Map[String, Bool] = Map([])
   let changes : Array[Json] = []
+  let parameter_renames : Array[Json] = []
   for key in keys {
     let a = before.get(key)
     let b = after.get(key)
     // JSON values are constructed in fixed field order, so this comparison is
     // deterministic and does not depend on parser declaration order.
-    if a.map(j => j.stringify()) != b.map(j => j.stringify()) {
+    if a.map(abi_identity) != b.map(abi_identity) {
       changed[key] = true
       let kind = if a is None {
         "added"
@@ -338,6 +357,14 @@ pub fn compare_headers(
         "before": a.unwrap_or(Json::null()),
         "after": b.unwrap_or(Json::null()),
         "review_required": kind != "added",
+      })
+    } else if key.has_prefix("function:") &&
+      a.map(j => j.stringify()) != b.map(j => j.stringify()) {
+      parameter_renames.push({
+        "symbol": key,
+        "change": "parameter_renamed",
+        "before": a.unwrap_or(Json::null()),
+        "after": b.unwrap_or(Json::null()),
       })
     }
   }
@@ -370,6 +397,7 @@ pub fn compare_headers(
     "target": target_name(target),
     "scope": "parsed C declarations under the same ABI, include paths and macro settings; not a binary compatibility guarantee",
     "changes": changes,
+    "parameter_renames": parameter_renames,
     "affected_functions": names,
     "suggested_checks": [
       "regenerate bindings", "review affected call sites and ownership contracts",

@@ -1,0 +1,12 @@
+SQLite is in the public domain. The following notice is retained from the
+vendored SQLite 3.45.0 amalgamation and header:
+
+The author disclaims copyright to this source code. In place of
+a legal notice, here is a blessing:
+
+    May you do good and not evil.
+    May you find forgiveness for yourself and forgive others.
+    May you share freely, never taking more than you give.
+
+Source: https://www.sqlite.org/2024/sqlite-amalgamation-3450000.zip
+Upstream copyright information: https://www.sqlite.org/copyright.html

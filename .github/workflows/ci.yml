@@ -127,3 +127,40 @@ jobs:
             _build/v08-*/**/reports/*.json
             _build/v08-*/**/reports/*.html
           if-no-files-found: warn
+
+  native-v09:
+    name: 0.9 library delivery / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install MoonBit (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Install MoonBit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Resolve dependencies
+        run: moon update
+      - name: Native contracts, SQLite callbacks, traces and upgrades
+        run: python scripts/verify-v09.py
+      - name: Preserve 0.9 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonbind-0.9-${{ matrix.os }}
+          path: |
+            _build/v09-*/summary.json
+            _build/v09-*/**/reports/*.json
+            _build/v09-*/**/reports/*.html
+          if-no-files-found: warn

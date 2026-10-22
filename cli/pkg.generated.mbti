@@ -72,6 +72,8 @@ pub(all) struct Options {
   bridge : Bool
   html : Bool
   ownership : Map[String, String]
+  output_buffers : Map[String, String]
+  managed_outputs : Map[String, String]
   buffers : Map[String, String]
   status_codes : Map[String, String]
   out_params : Map[String, String]

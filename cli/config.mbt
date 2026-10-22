@@ -33,7 +33,7 @@ pub fn config_args(
         "header", "out", "target", "include_paths", "defines", "allow_functions",
         "native_sources", "rename_functions", "strict", "bridge", "fail_on", "ownership",
         "status_codes", "out_params", "null_params", "callbacks", "trace_calls",
-        "buffers", "copy_strings",
+        "buffers", "copy_strings", "output_buffers", "managed_outputs",
       ].contains(key) {
       raise Failed("unknown configuration field: " + key)
     }
@@ -114,6 +114,8 @@ pub fn config_args(
       ("callbacks", "--callback"),
       ("ownership", "--own"),
       ("buffers", "--buffer"),
+      ("output_buffers", "--output-buffer"),
+      ("managed_outputs", "--managed-output"),
     ] {
     match fields.get(key) {
       None => ()

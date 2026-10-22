@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "name": "sqlite",
+  "template": "sqlite-managed",
+  "upstream": {
+    "version": "3.45.0",
+    "url": "https://www.sqlite.org/2024/sqlite-amalgamation-3450000.zip",
+    "license": "Public-Domain"
+  },
+  "targets": [
+    "x86_64",
+    "aarch64",
+    "win64"
+  ],
+  "link_options": {
+    "x86_64": [],
+    "aarch64": [],
+    "win64": []
+  },
+  "config": {
+    "header": "vendor/sqlite3.h",
+    "allow_functions": [
+      "sqlite3_open",
+      "sqlite3_close",
+      "sqlite3_prepare_v2",
+      "sqlite3_step",
+      "sqlite3_column_int",
+      "sqlite3_finalize"
+    ],
+    "trace_calls": true,
+    "status_codes": {
+      "sqlite3_open": "0",
+      "sqlite3_prepare_v2": "0"
+    },
+    "out_params": {
+      "sqlite3_open": "ppDb",
+      "sqlite3_prepare_v2": "ppStmt"
+    },
+    "null_params": {
+      "sqlite3_prepare_v2": "pzTail"
+    },
+    "managed_outputs": {
+      "sqlite3_open": "sqlite3_close:0:retained",
+      "sqlite3_prepare_v2": "sqlite3_finalize:0:released"
+    }
+  },
+  "files": [
+    {
+      "source": "testdata/sqlite/sqlite3.h",
+      "path": "vendor/sqlite3.h",
+      "sha256": "0c207567adc631521a353e067cfbc5044ebf11868f3c3fbf3178d6990409740e"
+    },
+    {
+      "source": "examples/sqlite3-demo/sqlite3.c",
+      "path": "vendor/sqlite3.c",
+      "sha256": "7956a38f236a6be6c0bb30c96ba4f85f19e5a69f6beb6d2c62c9d246972a6775"
+    },
+    {
+      "source": "testdata/sqlite/LICENSE.txt",
+      "path": "vendor/LICENSE.txt",
+      "sha256": "0f97f2b3c5d1fd7814fe54de584be50248a39173866ed160b260c9c2364d0a8e"
+    }
+  ]
+}

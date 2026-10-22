@@ -45,6 +45,8 @@ fn run_bridge(
   }
   if !options.status_codes.is_empty() ||
     !options.out_params.is_empty() ||
+    !options.output_buffers.is_empty() ||
+    !options.managed_outputs.is_empty() ||
     !options.null_params.is_empty() ||
     !options.callbacks.is_empty() {
     raise Failed("call contracts require direct mode")

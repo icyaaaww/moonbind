@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.0 — 2026-10-23
+
+- Generate bounded byte-in/byte-out wrappers with unsigned 32/64-bit length validation, explicit error predicates, allocation caps and structured errors.
+- Generate managed T** resource wrappers with retained/released close-error policies, error-handle preservation and closed/borrowed state checks.
+- Add pinned SQLite, cJSON and Zstandard recipes, source-integrity lock verification and a real Zstandard file roundtrip example. Vendor Zstandard 1.5.7 under BSD-3-Clause.
+- Classify upgrade actions and locate config pointers, generated declarations and runtime checks. Suggest review-only parameter rename edits while keeping pure parameter names outside ABI comparisons.
+- Add native delivery regression and a Linux/macOS/Windows CI matrix; retain all older regression jobs.
+- Publish onboarding and two independent trial tasks; real user feedback is pending.
+
+
 ## 0.8.0
 
 - Generate explicit signed-int status, single T** output and optional-NULL wrappers; preserve handles on error. Support status-returning destructors with distinct cleanup/both-error cases.
