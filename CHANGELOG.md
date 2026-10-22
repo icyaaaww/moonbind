@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.0
+
+- Add a standard-library Python project driver: init, doctor, generate, validate, report-check. MoonBit remains responsible for parsing, layout and code generation.
+- Add explicit ownership, byte-buffer length and borrowed-string-copy contracts, with signature validation and scoped cleanup on return/raised errors.
+- Expand C bridges to bounded nested structs/fixed arrays, widened narrow integer arguments and enums; emit field-width checks and narrow-range guards.
+- Generate relative C includes and module-relative include options for portable project trees.
+- Record function declaration token locations, stage results, tool versions, declared test associations and SHA-256 project/generator snapshots. Detect stale or failed reports.
+- Add standalone SQLite, zlib, cJSON, contracts and nested-record templates; preserve upstream licenses.
+- Add Linux/macOS project CI including failure paths, relocation, report invalidation and generated C sanitizer checks.
+- Public API: CModule.function_locations, Options ownership/buffers/copy_strings, and optional generator contract arguments. Fully specified struct literals need migration.
+- Publish honest support boundaries and an unfilled independent-user trial protocol; automation is not claimed as user feedback.
+
 ## 0.3.0
 
 - Rescan chained macro replacements with active-macro suppression. Surface preprocessing diagnostics, including missing includes, instead of silently discarding them.

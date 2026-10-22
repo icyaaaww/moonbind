@@ -510,7 +510,8 @@ pub fn generate_bridge(
   }
   // Opaque records are expected; function failures are not silently accepted.
   for skip in generator_skips {
-    if functions.any(f => f.name == skip.name) || skip.reason.has_prefix("contract:") {
+    if functions.any(f => f.name == skip.name) ||
+      skip.reason.has_prefix("contract:") {
       skips.push(skip)
     }
   }

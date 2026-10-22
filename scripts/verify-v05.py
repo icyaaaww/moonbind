@@ -130,6 +130,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--native", action="store_true")
     args = parser.parse_args()
+    (ROOT / "_build").mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="v05-", dir=ROOT / "_build"))
     print("Artifacts:", work, flush=True)
     checks(work, args.native)

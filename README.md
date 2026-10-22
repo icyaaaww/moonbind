@@ -3,7 +3,7 @@
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.3.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.5.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 [English / 技术设计详解](README.mbt.md) · [Mooncakes 包文档](https://mooncakes.io/docs/icyaaaww/moonbind) · [示例代码](examples) · [反馈问题](https://github.com/icyaaaww/moonbind/issues)
@@ -12,26 +12,29 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-当前发布版本为 **0.3.0**，适合试用、生成初始绑定和检查布局。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+当前版本为 **0.5.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
 
-## 0.3 新增：适配按值调用，检查升级风险
+## 0.5 新增：建立项目、运行验证、追踪证据
 
-- **C 适配层**：`--bridge` 为简单结构体按值参数/返回值和静态内联函数生成 C 包装代码。
-- **明确的内存接口**：创建、字段读写和释放函数；调用方检查空指针并管理生命周期。
-- **解析诊断**：提供文件、行列、token 和原因；存在已知诊断时拒绝生成，`--strict` 还拒绝跳过所选函数。
-- **升级规则**：`--fail-on removed|changed|any` 可让 CI 因声明变化而失败。
-- **离线 HTML**：展示变化前后内容、受影响函数和分析上下文。
-- **原生验证**：CI 实际调用生成接口，并通过 C 包装层的 ASan/UBSan 检查及头文件布局变化反例。
+- **项目命令**：初始化、环境诊断、生成、原生验证与旧报告检查。
+- **显式约定**：配置创建/释放配对、字节缓冲区长度和借用字符串复制，生成对应包装函数。
+- **结构体扩展**：嵌套记录、固定数组、窄整数和枚举，通过 C 适配层按值调用。
+- **真实库模板**：SQLite、zlib、cJSON，加上资源清理和嵌套结构体示例。
+- **可追溯报告**：记录来源位置、工具链、分阶段退出码、作者声明的测试关联以及 SHA-256 文件快照。
+- **项目迁移**：相对头文件和包含路径，保持项目结构即可迁移；Linux/macOS 原生验证纳入 CI。
 
-详见 [0.3 使用指南与支持边界](docs/v0.3.md)、[0.2 维护功能](docs/v0.2.md) 和 [更新记录](CHANGELOG.md)。
+详见 [0.5 使用指南与支持边界](docs/v0.5.md)、[0.3 升级检查](docs/v0.3.md) 和 [更新记录](CHANGELOG.md)。
+
+在源码仓库运行（Python 3.10+、MoonBit、C11 编译器）：
 
 ```sh
-moon run cmd/main --target wasm-gc -- --config moonbind.bridge.json
-moon run cmd/main --target wasm-gc -- --config moonbind.bridge.json --check
-moon run cmd/main --target wasm-gc -- testdata/bridge/point-v2.h --compare testdata/bridge/point.h --fail-on changed --html > upgrade-review.html
+moon update
+python moonbind.py init ../my-cjson --template cjson
+python moonbind.py validate ../my-cjson
+python moonbind.py report-check ../my-cjson
 ```
 
-最后一条命令预期退出码为 **3**，表示升级规则阻止通过；生成的 HTML 可直接打开。
+打开 `../my-cjson/reports/validation.html` 查看验证结果。`validate` 会执行项目代码；`report-check` 检查快照是否因文件变化而失效。原生项目模板面向 LP64 Linux/macOS，Windows 可生成和检查类型，暂不支持 LLP64 原生验证。报告不等同于完整的 ABI 或内存安全证明。
 
 ## 能解决什么问题
 
@@ -88,7 +91,7 @@ _build/generated-greet/
 在已有 MoonBit 模块中安装：
 
 ```sh
-moon add icyaaaww/moonbind@0.3.0
+moon add icyaaaww/moonbind@0.5.0
 ```
 
 按需在调用方的 `moon.pkg` 中导入子包；模块根包不提供生成器 API：
@@ -165,7 +168,7 @@ moon test --target wasm-gc
 moon fmt --check
 ```
 
-0.3 包含 **108 项 MoonBit 测试**，另有独立 CLI 黑盒检查，以及从头生成 SQLite / zlib 绑定的原生集成验证。0.1 发布时还完成了独立项目从 Mooncakes 下载依赖后的使用验证。
+0.5 包含 **113 项 MoonBit 测试**，另有独立 CLI 检查和五套消费项目验证。CI 覆盖 Linux/macOS 原生调用、报告失效、失败路径与项目迁移。真实用户试用仍待执行，任务见 [试用说明](docs/user-trial.md)。
 
 具备 Bash、clang、awk、sort 和 diff 的环境还可以运行：
 
@@ -178,7 +181,7 @@ bash scripts/verify-layout.sh
 ## 当前边界
 
 - 解析范围侧重 C11 声明及项目支持的预处理、布局特性，不是完整的 C/C++ 编译器；C++ 接口建议先提供 C 包装层。
-- 普通绑定模式跳过变参及按值结构体函数；`--bridge` 可适配简单结构体按值调用，具体范围见 [0.3 指南](docs/v0.3.md)。使用报告检查实际缺失的接口。
+- 普通绑定模式跳过变参及按值结构体函数；`--bridge` 可适配受限的嵌套结构体、固定数组、枚举及窄整数，具体范围见 [0.5 指南](docs/v0.5.md)。使用报告检查实际缺失的接口。
 - 某些结构体不能生成可直接映射的 MoonBit 表示；不透明句柄与可直接访问字段的结构体是不同用法。
 - `x86_64` 表示 SysV 布局，并不代表 Windows x64 ABI。布局目标应与实际被绑定库一致。
 - 生成器不能从头文件完整推断资源释放时机、字符串生命周期和线程安全约束，调用代码仍需遵循 C 库文档。

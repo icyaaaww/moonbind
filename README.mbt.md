@@ -21,10 +21,14 @@ generator writes the whole MoonBit package into it: `bindings.mbt`,
 laid out for — `x86_64` (the default), `aarch64` or `wasm32` — because a
 binding is only correct for the machine whose struct layout it mirrors.
 
-> **Status: 0.3.0.** Lexer, preprocessor, C11 parser, record layout for three
-> ABIs, code generation and the command line are complete and tested. What is
-> left is a longer list of refusal reasons, not a missing stage; see
-> [Roadmap](#roadmap).
+> **Status: 0.5.0.** A bounded C declaration/layout/binding tool with opt-in
+> adapters, explicit call contracts and reproducible project validation. It is
+> not a complete C compiler or an automatic memory-safety proof.
+>
+> Start with `python moonbind.py init ../demo --template cjson`, then
+> `python moonbind.py validate ../demo`. See the [0.5 guide](docs/v0.5.md).
+> The Python standard-library driver orchestrates tools; parsing, layout and
+> all binding/adapter/wrapper generation remain implemented in MoonBit.
 
 ## Why this is not a header-to-text script
 
@@ -210,7 +214,30 @@ struct P2  0:0-25 a  3:2-8 b [sizeof=6, align=2]
 union P9  0 c  0:0-19 a [sizeof=4, align=4]
 ```
 
-## C adapters and upgrade checks in 0.3
+## Project workflow and contracts in 0.5
+
+`moonbind.py` provides init, doctor, generate, validate and report-check commands.
+Five standalone templates cover SQLite, zlib, cJSON, ownership contracts and
+nested records. Native validation targets LP64 Linux/macOS; Windows LLP64 is
+explicitly rejected by the environment probe.
+
+Generator options `--own create=free`, `--buffer fn=pointer:length`, and
+`--copy-string fn` generate scoped cleanup, derived byte counts and immediate
+copies of borrowed NUL strings. These are user-supplied contracts: scoped
+cleanup does not enforce handle non-escape or protect against manually freeing
+borrowed handles. Contract errors refuse CLI output even without strict mode.
+
+Bridges support bounded nested structs, fixed arrays, narrow integers widened
+to 32-bit adapter arguments, and signed-32-bit-range enums. Out-of-range narrow
+writes abort. Unions, bitfields, pointers/callbacks and packing remain excluded.
+Headers and include paths are relative to the generated source/module tree.
+
+Validation records source token locations, phase exit codes and SHA-256 file
+snapshots. Function-to-test associations are declared by test authors, not
+inferred code coverage. Reports are unsigned; report-check detects file changes,
+not dynamic-library or OS replacement. Rerun validate after environment changes.
+
+## C adapters and upgrade checks introduced in 0.3
 
 The opt-in `--bridge --out DIR` mode generates C adapters for scalar functions,
 simple scalar-field records passed/returned by value, and static function
@@ -221,8 +248,7 @@ of scope. Existing direct pointer bindings remain available.
 `--strict` rejects known parser diagnostics and skipped selected functions.
 `--fail-on none|removed|changed|any` controls comparison gates (exit 3), while
 `--html` creates a standalone, escaped, script-free review report. C layout
-assertions are emitted, not executed during generation. Regenerate adapters
-after moving checkouts; they include absolute header paths.
+assertions are emitted, not executed during generation. In 0.5, adapters include relative header paths; preserve the project tree when moving it.
 
 See the [0.3 guide](docs/v0.3.md) for contracts, limitations, migration and
 validation. CI runs native Point adapters, a 1,000-cycle C ASan/UBSan harness,
@@ -240,10 +266,10 @@ complete binary compatibility verdicts.
 
 ### Install the Mooncakes library
 
-The published module is `icyaaaww/moonbind@0.3.0`:
+The published module is `icyaaaww/moonbind@0.5.0`:
 
 ```sh
-moon add icyaaaww/moonbind@0.3.0
+moon add icyaaaww/moonbind@0.5.0
 ```
 
 Import the stage you need, for example `"icyaaaww/moonbind/layout"` or
@@ -283,7 +309,7 @@ the demos are run with `--target native`.
 - [x] MoonBit code generation
 - [x] Command-line interface and runnable examples
 - [x] Differential verification against clang
-- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.3.0
+- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.5.0
 - [x] Simple struct arguments/returns through opt-in C adapters (0.3)
 - [ ] `#define` function-like macros as MoonBit functions
 
