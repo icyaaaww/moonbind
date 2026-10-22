@@ -19,6 +19,7 @@ def check(report):
 
 
 def main():
+    (ROOT / "_build").mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix="v08-", dir=ROOT / "_build"))
     print("Artifacts:", work, flush=True)
     projects = {}
