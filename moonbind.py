@@ -77,6 +77,8 @@ def load_project(root):
         raise ValueError("Expected project schema_version 1")
     config = inside(root, p.get("binding_config"))
     c = read_json(config)
+    if not isinstance(c, dict):
+        raise ValueError("Generator configuration must be a JSON object")
     # Paths in the generator config resolve relative to that config.
     for key in ("header", "out"):
         if key not in c:
@@ -175,6 +177,9 @@ def inventory(root, generator=False):
                 raise ValueError("Snapshot requires real directories: " + str(Path(directory) / d))
         dirs[:] = sorted(d for d in dirs if d not in IGNORE)
         for name in sorted(files):
+            # Moon updates these derived interfaces while checking/building.
+            if not generator and name == "pkg.generated.mbti":
+                continue
             path = Path(directory) / name
             relative = path.relative_to(root).as_posix()
             if path.is_symlink():
@@ -203,11 +208,12 @@ def render_report(report):
 
 
 def validate(root):
-    root, p, config, c = load_project(root)
+    root = Path(root).resolve()
     report = {"schema_version": 1, "generator_version": VERSION,
               "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(), "status": "failed",
               "stages": {}, "functions": [], "scope": "Recorded execution evidence for this input snapshot, not a general memory/ABI safety guarantee."}
     try:
+        root, p, config, c = load_project(root)
         generated = generate(root)
         report["generation"] = generated
         generated_names = {f["name"] for f in generated.get("functions", []) if f.get("status") == "generated"}
@@ -245,8 +251,12 @@ def validate(root):
             report["status"] = "compiled_only"
         else:
             report["status"] = "passed"
-        if report["snapshot"]["project"] != inventory(root):
-            raise RuntimeError("Project files changed during validation; rerun on a stable snapshot")
+        after = inventory(root)
+        before = report["snapshot"]["project"]
+        if before != after:
+            changed = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
+            report["changed_during_validation"] = changed
+            raise RuntimeError("Project inputs changed during validation: " + ", ".join(changed))
         if report["snapshot"]["generator"] != inventory(ROOT, generator=True):
             raise RuntimeError("Generator changed during validation")
     except (RuntimeError, ValueError, OSError, KeyError) as e:
@@ -308,11 +318,12 @@ def init_project(destination, template, target):
             functions = ["packet_step", "packet_total"]
             verifies = "nested record return, array field update, enum, signed narrow fields and cleanup"
         elif template == "sqlite":
-            files = [("testdata/sqlite/sqlite3.h", "vendor/sqlite3.h"), ("examples/sqlite3-demo/sqlite3.c", "vendor/sqlite3.c")]
-            config.update(header="vendor/sqlite3.h", native_sources=["../vendor/sqlite3.c"])
+            files = [("testdata/sqlite/sqlite3.h", "vendor/sqlite3.h"), ("examples/sqlite3-demo/sqlite3.c", "vendor/sqlite3.c"),
+                     ("templates/sqlite/adapter.h", "vendor/adapter.h"), ("templates/sqlite/adapter.c", "vendor/adapter.c")]
+            config.update(header="vendor/adapter.h", native_sources=["../vendor/sqlite3.c", "../vendor/adapter.c"])
             # Strict selection covers exactly the APIs used by the demo.
             code = (ROOT / "templates/sqlite/main.mbt").read_text(encoding="utf-8")
-            functions = sorted(set(re.findall(r"@lib\.(sqlite3_[a-z0-9_]+)\(", code)))
+            functions = sorted(set(re.findall(r"@lib\.((?:sqlite3|demo_sqlite)_[a-z0-9_]+)\(", code)))
             config["allow_functions"] = functions
             verifies = "in-memory database, prepared insert/query and resource closure"
         elif template == "zlib":

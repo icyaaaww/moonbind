@@ -70,6 +70,14 @@ def checks(work, native=False):
         assert not failed.get("runtime_checks")
         source.write_text(original_c)
         cli("validate", project)
+        # Malformed configuration must invalidate the saved success report too.
+        config_path = project / "moonbind.json"
+        original_config = config_path.read_text()
+        config_path.write_text("{broken")
+        cli("validate", project, ok=False)
+        assert d.read_json(project / "reports/validation.json")["status"] == "failed"
+        config_path.write_text(original_config)
+        cli("validate", project)
 
         # Relative bridge header + configured includes survive a project move.
         nested = projects["nested"]

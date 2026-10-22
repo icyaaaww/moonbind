@@ -1,164 +1,59 @@
-//! A whole program written against the generated sqlite3 bindings.
-//!
-//! The point of the example is not that sqlite works — it does — but that
-//! nothing in this file mentions a C type, a pointer size or an offset. A
-//! header was handed to `moonbind`, and this is what came out.
-//!
-//! Run it with `moon run examples/sqlite3-demo`.
-
 ///|
-/// The SQL this program runs, in one place so that the flow is readable.
-let setup_sql : String = "CREATE TABLE moons (name TEXT NOT NULL, craters INT NOT NULL);"
-
-///|
-let insert_sql : String = "INSERT INTO moons (name, craters) VALUES (?, ?);"
-
-///|
-let select_sql : String = "SELECT name, craters FROM moons ORDER BY craters DESC;"
-
-///|
-/// A row of the result, so the printing half of the program is separate from
-/// the calling half.
-struct Moon {
-  name : String
-  craters : Int32
-}
-
-///|
-fn Moon::show(self : Moon) -> Unit {
-  println("  \{self.name} — \{self.craters} craters")
-}
-
-///|
-/// Stop the program with sqlite's own message. A binding that hides the error
-/// text would be useless the first time something went wrong.
-///
-/// `wanted` is the status the call is supposed to return: most calls answer
-/// `SQLITE_OK`, while a statement that runs to completion answers
-/// `SQLITE_DONE`. Anything else is a failure.
-fn check(
-  db : @lib.Sqlite3Ptr,
-  status : Int32,
-  wanted : Int32,
-  doing : String,
-) -> Unit raise {
-  if status != wanted {
-    let message = @lib.sqlite3_errmsg(db)
-    raise Failure(
-      "\{doing} failed: " + @utf8.decode(@lib.copy_cstr(message)),
-    )
+fn check(db : @lib.Sqlite3Ptr, status : Int, expected : Int) -> Unit raise {
+  if status != expected {
+    raise Failure(@utf8.decode(@lib.copy_cstr(@lib.sqlite3_errmsg(db))))
   }
 }
 
 ///|
-fn main {
-  let db_slot = @lib.Sqlite3Ptr::slot()
-  let status = @lib.sqlite3_open(@utf8.encode(":memory:"), db_slot)
-  let db = @lib.Sqlite3Ptr::read_slot(db_slot)
+fn main raise {
+  let slot = @lib.Sqlite3Ptr::slot()
+  let status = @lib.sqlite3_open(b":memory:\x00", slot)
+  let db = @lib.Sqlite3Ptr::read_slot(slot)
   if status != @lib.sqlite_ok || db.is_null() {
-    println("could not open a database")
-    return
+    if !db.is_null() { ignore(@lib.sqlite3_close(db)) }
+    raise Failure("database open failed")
   }
+  let mut insert = @lib.Sqlite3StmtPtr::null()
+  let mut query = @lib.Sqlite3StmtPtr::null()
   try {
-    // 1. A schema, executed as a whole statement.
-    check(
-      db,
-      @lib.sqlite3_exec(
-        db,
-        @utf8.encode(setup_sql),
-        @lib.VoidPtr::null(),
-        @lib.VoidPtr::null(),
-        b"",
-      ),
-      @lib.sqlite_ok,
-      "creating the table",
-    )
-
-    // 2. Two inserts through a prepared statement. The `?` placeholders are
-    //    bound by position, and `sqlite3_reset` makes the statement reusable.
+    check(db, @lib.demo_sqlite_exec(db, b"CREATE TABLE moons(name TEXT, craters INT);\x00"), @lib.sqlite_ok)
+    let insert_sql = b"INSERT INTO moons VALUES (?, ?)"
     let stmt_slot = @lib.Sqlite3StmtPtr::slot()
-    check(
-      db,
-      @lib.sqlite3_prepare_v2(
-        db,
-        @utf8.encode(insert_sql),
-        -1,
-        stmt_slot,
-        b"",
-      ),
-      @lib.sqlite_ok,
-      "preparing the insert",
-    )
-    let insert = @lib.Sqlite3StmtPtr::read_slot(stmt_slot)
-    for row in [("Tycho", 5), ("Copernicus", 3), ("Kepler", 2)] {
-      let (name, craters) = row
-      check(
-        db,
-        @lib.sqlite3_bind_text(
-          insert,
-          1,
-          @utf8.encode(name),
-          -1,
-          @lib.VoidPtr::null(),
-        ),
-        @lib.sqlite_ok,
-        "binding a name",
-      )
-      check(
-        db,
-        @lib.sqlite3_bind_int(insert, 2, craters),
-        @lib.sqlite_ok,
-        "binding a count",
-      )
-      check(
-        db,
-        @lib.sqlite3_step(insert),
-        @lib.sqlite_done,
-        "inserting \{name}",
-      )
-      ignore(@lib.sqlite3_reset(insert))
+    check(db, @lib.demo_sqlite_prepare(db, insert_sql, insert_sql.length(), stmt_slot), @lib.sqlite_ok)
+    insert = @lib.Sqlite3StmtPtr::read_slot(stmt_slot)
+    let expected = [("Tycho", 5), ("Copernicus", 3), ("Kepler", 2)]
+    for (name, craters) in expected {
+      let bytes = @utf8.encode(name)
+      // SQLite copies these bytes before the adapter returns.
+      check(db, @lib.demo_sqlite_bind_text(insert, 1, bytes, bytes.length()), @lib.sqlite_ok)
+      check(db, @lib.sqlite3_bind_int(insert, 2, craters), @lib.sqlite_ok)
+      check(db, @lib.sqlite3_step(insert), @lib.sqlite_done)
+      check(db, @lib.sqlite3_reset(insert), @lib.sqlite_ok)
     }
-    ignore(@lib.sqlite3_finalize(insert))
-
-    // 3. A query. `sqlite3_step` returns SQLITE_ROW once per row and
-    //    SQLITE_DONE at the end, which is the whole cursor protocol.
-    println("craters by size:")
-    let query_slot = @lib.Sqlite3StmtPtr::slot()
-    check(
-      db,
-      @lib.sqlite3_prepare_v2(
-        db,
-        @utf8.encode(select_sql),
-        -1,
-        query_slot,
-        b"",
-      ),
-      @lib.sqlite_ok,
-      "preparing the query",
-    )
-    let query = @lib.Sqlite3StmtPtr::read_slot(query_slot)
-    let mut rows = 0
-    while @lib.sqlite3_step(query) == @lib.sqlite_row {
-      let name = @utf8.decode(
-        @lib.copy_cstr(@lib.sqlite3_column_text(query, 0)),
-      )
-      let craters = @lib.sqlite3_column_int(query, 1)
-      { name, craters, }.show()
-      rows = rows + 1
+    let finalized = @lib.sqlite3_finalize(insert)
+    insert = @lib.Sqlite3StmtPtr::null()
+    check(db, finalized, @lib.sqlite_ok)
+    let sql = b"SELECT name, craters FROM moons ORDER BY craters DESC"
+    check(db, @lib.demo_sqlite_prepare(db, sql, sql.length(), stmt_slot), @lib.sqlite_ok)
+    query = @lib.Sqlite3StmtPtr::read_slot(stmt_slot)
+    for (name, craters) in expected {
+      check(db, @lib.sqlite3_step(query), @lib.sqlite_row)
+      assert_eq(@utf8.decode(@lib.copy_cstr(@lib.sqlite3_column_text(query, 0))), name)
+      assert_eq(@lib.sqlite3_column_int(query, 1), craters)
     }
-    ignore(@lib.sqlite3_finalize(query))
-    println("\{rows} rows")
-
-    check(
-      db,
-      @lib.sqlite3_close(db),
-      @lib.sqlite_ok,
-      "closing the database",
-    )
+    check(db, @lib.sqlite3_step(query), @lib.sqlite_done)
+    let finalized = @lib.sqlite3_finalize(query)
+    query = @lib.Sqlite3StmtPtr::null()
+    check(db, finalized, @lib.sqlite_ok)
+    check(db, @lib.sqlite3_close(db), @lib.sqlite_ok)
   } catch {
     err => {
-      println(err.to_string())
+      if !insert.is_null() { ignore(@lib.sqlite3_finalize(insert)) }
+      if !query.is_null() { ignore(@lib.sqlite3_finalize(query)) }
       ignore(@lib.sqlite3_close(db))
+      raise err
     }
   }
+  println("PASS SQLite: 3 asserted rows, explicit text lifetime and resource cleanup")
 }
