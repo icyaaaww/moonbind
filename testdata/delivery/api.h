@@ -10,3 +10,4 @@ int resource_release(struct Resource *value);
 int resource_value(struct Resource *value);
 int live_count(void);
 int close_count(void);
+int config_value(void);

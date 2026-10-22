@@ -136,6 +136,7 @@ fn run_bridge(
   let sources = options.native_sources.copy()
   sources.push("bridge.c")
   let files : Map[String, String] = Map([
+    ("moonbind-config.h", "#pragma once\n" + adapter_macros(options)),
     ("bindings.mbt", result.bindings),
     ("strings.mbt", @codegen.strings_source()),
     ("stub.c", @codegen.stub_source()),

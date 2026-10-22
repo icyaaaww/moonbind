@@ -52,6 +52,10 @@ def main():
     assert counts["transform"] == 5 and counts["transform32"] == 2, counts
     assert counts["resource_close"] == 3, counts
     config = d.read_json(path / "moonbind.json")
+    changed_macro = {**config, "defines": ["MB_DELIVERY_CONFIG=2"]}
+    d.write_json(path / "moonbind.json", changed_macro)
+    assert d.validate(path)["status"] == "failed", "Changed macro must reach library translation units and break the value assertion"
+    d.write_json(path / "moonbind.json", config)
     for contract in ("dst:capacity:src:length:missing:64", "dst:capacity:dst:length:failed:64", "dst:capacity:src:length:failed:-1"):
         bad = {**config, "strict": False, "output_buffers": {"transform": contract}}
         d.write_json(path / "moonbind.json", bad)
@@ -75,7 +79,7 @@ def main():
       assert_eq(@lib.close_count(), 1)
     }\n''', encoding="utf-8")
     check(d.validate(released))
-    print("PASS length/overflow guards, invalid contracts, retained and released error policies", flush=True)
+    print("PASS macro propagation, length/overflow guards, invalid contracts, retained and released error policies", flush=True)
     header = path / "vendor/api.h"
     original = header.read_text(encoding="utf-8")
     old = work / "old.h"

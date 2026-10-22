@@ -2,6 +2,7 @@
 /// Managed file names are fixed; state files cannot redirect writes.
 let managed_names : Array[String] = [
   "bindings.mbt", "strings.mbt", "stub.c", "moon.pkg", "moonbind-report.json", "bridge.c",
+  "moonbind-config.h",
 ]
 
 ///|
@@ -59,9 +60,14 @@ fn read_state(text : String) -> Map[String, String] raise RunError {
       _ => raise Failed("invalid managed file entry")
     }
   }
-  if files.size() != managed_names.length() &&
-    !(files.size() == 5 && !files.contains("bridge.c")) {
-    raise Failed("incomplete generated state")
+  // Older states have five core files, then optional bridge/config additions.
+  for
+    name in [
+      "bindings.mbt", "strings.mbt", "stub.c", "moon.pkg", "moonbind-report.json",
+    ] {
+    if !files.contains(name) {
+      raise Failed("incomplete generated state")
+    }
   }
   files
 }

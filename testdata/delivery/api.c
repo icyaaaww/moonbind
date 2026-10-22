@@ -35,3 +35,4 @@ int resource_release(struct Resource *p) { closes++; free(p); live--; return 9; 
 int resource_value(struct Resource *p) { return p->mode; }
 int live_count(void) { return live; }
 int close_count(void) { return closes; }
+int config_value(void) { return MB_DELIVERY_CONFIG; }

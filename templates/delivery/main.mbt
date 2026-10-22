@@ -1,5 +1,6 @@
 ///|
 fn main raise {
+  assert_eq(@lib.config_value(), 1)
   assert_eq(@lib.transform_bytes(b"abc\x00\xff", 5, 0), Ok(b"abc\x00\xff"))
   assert_eq(@lib.transform_bytes(b"", 0, 0), Ok(b""))
   assert_eq(@lib.transform_bytes(b"", 8, 1), Err(@lib.InvalidWrittenLength(9UL)))

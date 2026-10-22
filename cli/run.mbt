@@ -185,6 +185,7 @@ pub fn run(options : Options) -> String raise RunError {
         ""
       }
       let files : Map[String, String] = Map([
+        ("moonbind-config.h", "#pragma once\n" + adapter_macros(options)),
         ("bindings.mbt", text),
         ("strings.mbt", @codegen.strings_source()),
         ("stub.c", @codegen.stub_source() + "\n" + adapter),

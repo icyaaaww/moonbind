@@ -414,8 +414,8 @@ def init_project(destination, template, target, recipe=None):
             verifies = "real SQLite synchronous row callback, raised MoonBit error, C abort/error, generated output/NULL/status wrappers"
         elif template == "delivery":
             files = [("testdata/delivery/api.h", "vendor/api.h"), ("testdata/delivery/api.c", "vendor/api.c")]
-            functions = ["transform", "transform32", "failed", "failed32", "resource_open", "resource_close", "resource_release", "resource_value", "live_count", "close_count"]
-            config.update(native_sources=["../vendor/api.c"], trace_calls=True,
+            functions = ["transform", "transform32", "failed", "failed32", "resource_open", "resource_close", "resource_release", "resource_value", "live_count", "close_count", "config_value"]
+            config.update(native_sources=["../vendor/api.c"], trace_calls=True, defines=["MB_DELIVERY_CONFIG=1"],
                           output_buffers={"transform":"dst:capacity:src:length:failed:64", "transform32":"dst:capacity:src:length:failed32:64"},
                           status_codes={"resource_open":"0"}, out_params={"resource_open":"out"},
                           managed_outputs={"resource_open":"resource_close:0:retained"})
@@ -476,7 +476,7 @@ def init_project(destination, template, target, recipe=None):
             for i, source in enumerate(config["native_sources"]):
                 name = f"library_{i}.c" if template == "zstd" else "library.c"
                 path = staging / "bindings" / name
-                previous = path.read_text(encoding="utf-8") if path.exists() else ""
+                previous = path.read_text(encoding="utf-8") if path.exists() else '#include "moonbind-config.h"\n'
                 path.write_text(previous + '#include ' + json.dumps(source) + '\n', encoding="utf-8")
                 if name not in sources:
                     sources.append(name)
