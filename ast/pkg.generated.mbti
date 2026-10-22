@@ -69,6 +69,8 @@ pub(all) struct CModule {
   functions : Array[CFnDecl]
   constants : Array[CConstDecl]
   sources : Array[String]
+  diagnostics : Array[Diagnostic]
+  static_definitions : Array[CFnDecl]
 } derive(@debug.Debug)
 pub fn CModule::add_function(Self, CFnDecl) -> Unit
 pub fn CModule::add_typedef(Self, CTypedef) -> Unit
@@ -122,6 +124,15 @@ pub fn CType::same(Self, Self) -> Bool
 pub(all) struct CTypedef {
   name : String
   mut ty : CType
+} derive(@debug.Debug)
+
+pub(all) struct Diagnostic {
+  code : String
+  file : String
+  line : Int32
+  column : Int32
+  token : String
+  message : String
 } derive(@debug.Debug)
 
 pub(all) struct FnSig {

@@ -8,7 +8,10 @@
 ///|
 /// Generate a native package manifest. Additional C sources are relative to
 /// the generated package and are configured, not patched after generation.
-pub fn package_manifest(native_sources~ : Array[String] = []) -> String {
+pub fn package_manifest(
+  native_sources~ : Array[String] = [],
+  stub_flags~ : String = "",
+) -> String {
   let sources = ["stub.c"]
   for path in native_sources {
     if !sources.contains(path) {
@@ -18,7 +21,9 @@ pub fn package_manifest(native_sources~ : Array[String] = []) -> String {
   let quoted = sources.map(s => s.to_json().stringify())
   "supported_targets = \"native\"\n\noptions(\n  \"native-stub\": [ " +
   quoted.join(", ") +
-  " ],\n)\n"
+  " ],\n  \"link\": { \"native\": { \"stub-cc-flags\": " +
+  stub_flags.to_json().stringify() +
+  " } },\n)\n"
 }
 
 ///|

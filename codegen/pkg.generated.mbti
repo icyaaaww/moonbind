@@ -18,6 +18,8 @@ pub fn function_name(String) -> String
 
 pub fn generate(@ast.CModule, @layout.Target, function_names? : Map[String, String]) -> (String, Array[Skip])
 
+pub fn generate_bridge(@ast.CModule, @layout.Target, String, function_names? : Map[String, String]) -> Bridge
+
 pub fn handle_name(@ast.CModule, @ast.CType) -> String
 
 pub fn int_type(@ast.CIntKind) -> String
@@ -32,7 +34,7 @@ pub fn moon_type(@ast.CModule, @ast.CType, Position) -> String
 
 pub fn opaque_name(String) -> String
 
-pub fn package_manifest(native_sources? : Array[String]) -> String
+pub fn package_manifest(native_sources? : Array[String], stub_flags? : String) -> String
 
 pub fn param_name(String, Int32) -> String
 
@@ -51,6 +53,14 @@ pub let void_ptr_name : String
 // Errors
 
 // Types and methods
+pub(all) struct Bridge {
+  bindings : String
+  c_source : String
+  adapted : Array[String]
+  skipped : Array[Skip]
+  records : Array[String]
+}
+
 type Gen
 
 pub(all) enum MirrorRefusal {

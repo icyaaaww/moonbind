@@ -97,6 +97,11 @@ fn Cursor::run_unit(self : Cursor) -> Unit {
     // without consuming anything, the token it stopped on is dropped. The
     // alternative is a hang on a header the tool was supposed to survive.
     if self.pos == start {
+      self.diagnose(
+        self.peek(),
+        "parser_stalled",
+        "unrecognized declaration token",
+      )
       let _ = self.next()
     }
   }
@@ -141,6 +146,11 @@ fn Cursor::run_one_declaration(self : Cursor) -> Unit {
   if !self.at_declaration_start() {
     // Unknown construct at file scope. Skipping to the next `;` keeps the
     // rest of the header parseable instead of failing the whole run.
+    self.diagnose(
+      self.peek(),
+      "unknown_declaration",
+      "declaration was not understood and was skipped",
+    )
     self.skip_to_semicolon()
     return
   }
@@ -235,7 +245,13 @@ fn Cursor::parse_declaration(self : Cursor) -> Unit {
       break
     }
   }
-  let _ = self.accept(";")
+  if !self.accept(";") {
+    self.diagnose(
+      self.peek(),
+      "expected_semicolon",
+      "expected semicolon after declaration",
+    )
+  }
 }
 
 ///|
@@ -270,9 +286,17 @@ fn Cursor::record_declarator(
       self.module.add_typedef(@ast.CTypedef::{ name: d.name, ty, })
     }
     SStatic =>
-      // A `static` declaration is not part of the ABI. A `static` function
-      // definition was already skipped by the caller.
-      ()
+      if self.at("{") {
+        if d.fn_signature() is Some((params, variadic)) {
+          self.module.static_definitions.push({
+            name: d.name,
+            ret: d.ret_of(base),
+            params: decay_params(params),
+            variadic,
+            internal: true,
+          })
+        }
+      }
     SNone =>
       match d.fn_signature() {
         Some((params, variadic)) =>
@@ -346,5 +370,8 @@ fn Cursor::skip_braces(self : Cursor) -> Unit {
         return
       }
     }
+  }
+  if depth > 0 {
+    self.diagnose(self.peek(), "unclosed_body", "expected closing body brace")
   }
 }

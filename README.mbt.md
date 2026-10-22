@@ -21,7 +21,7 @@ generator writes the whole MoonBit package into it: `bindings.mbt`,
 laid out for — `x86_64` (the default), `aarch64` or `wasm32` — because a
 binding is only correct for the machine whose struct layout it mirrors.
 
-> **Status: 0.2.0.** Lexer, preprocessor, C11 parser, record layout for three
+> **Status: 0.3.0.** Lexer, preprocessor, C11 parser, record layout for three
 > ABIs, code generation and the command line are complete and tested. What is
 > left is a longer list of refusal reasons, not a missing stage; see
 > [Roadmap](#roadmap).
@@ -124,7 +124,7 @@ left out: sqlite3_vfs — no MoonBit representation: pNext: a pointer has no Moo
 ```
 
 One refusal is worth spelling out because it is a fact about MoonBit's FFI and
-not about C: **a struct passed or returned by value is always refused**, even
+not about C: **direct bindings refuse structs passed or returned by value**, even
 when its layout matches MoonBit's exactly. MoonBit passes every non-scalar
 argument by reference, so a C function expecting `struct { int x; int y; }` in
 registers instead receives the low words of a pointer to a box and reads
@@ -210,6 +210,24 @@ struct P2  0:0-25 a  3:2-8 b [sizeof=6, align=2]
 union P9  0 c  0:0-19 a [sizeof=4, align=4]
 ```
 
+## C adapters and upgrade checks in 0.3
+
+The opt-in `--bridge --out DIR` mode generates C adapters for scalar functions,
+simple scalar-field records passed/returned by value, and static function
+definitions. Returned records are allocated handles: check for null and free
+exactly once. Pointer/callback/vararg and nested/packed record bridges are out
+of scope. Existing direct pointer bindings remain available.
+
+`--strict` rejects known parser diagnostics and skipped selected functions.
+`--fail-on none|removed|changed|any` controls comparison gates (exit 3), while
+`--html` creates a standalone, escaped, script-free review report. C layout
+assertions are emitted, not executed during generation. Regenerate adapters
+after moving checkouts; they include absolute header paths.
+
+See the [0.3 guide](docs/v0.3.md) for contracts, limitations, migration and
+validation. CI runs native Point adapters, a 1,000-cycle C ASan/UBSan harness,
+and a deliberate header-layout mismatch, alongside SQLite and zlib regressions.
+
 ## Maintaining bindings in 0.2
 
 See the [0.2 guide](docs/v0.2.md) for strict JSON configuration, edit protection,
@@ -222,10 +240,10 @@ complete binary compatibility verdicts.
 
 ### Install the Mooncakes library
 
-The published module is `icyaaaww/moonbind@0.2.0`:
+The published module is `icyaaaww/moonbind@0.3.0`:
 
 ```sh
-moon add icyaaaww/moonbind@0.2.0
+moon add icyaaaww/moonbind@0.3.0
 ```
 
 Import the stage you need, for example `"icyaaaww/moonbind/layout"` or
@@ -265,8 +283,8 @@ the demos are run with `--target native`.
 - [x] MoonBit code generation
 - [x] Command-line interface and runnable examples
 - [x] Differential verification against clang
-- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.2.0
-- [ ] Struct returns by value, once the FFI can express them
+- [x] Published as [icyaaaww/moonbind](https://mooncakes.io/docs/icyaaaww/moonbind) 0.3.0
+- [x] Simple struct arguments/returns through opt-in C adapters (0.3)
 - [ ] `#define` function-like macros as MoonBit functions
 
 ## License

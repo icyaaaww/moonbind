@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Add located diagnostics for known unsupported syntax and malformed declarations. Refuse generation/layout verification for diagnosed modules; strict mode also rejects skipped selected functions.
+- Generate optional C adapters for simple records passed/returned by value and static function definitions, with explicit allocation/access/free helpers and compile-time layout assertions.
+- Add comparison policies (`none`, `removed`, `changed`, `any`), exit code 3, and standalone escaped HTML review reports. Static declarations participate in comparisons; bodies are not compared.
+- Preserve 0.2 managed-output migration and add `bridge.c` to the managed set.
+- Add native bridge calls, C ASan/UBSan cycles, and deliberate layout-mismatch validation to CI; keep SQLite/zlib and clang layout regressions.
+- Public API: add Diagnostic, CModule diagnostics/static_definitions, Bridge/generate_bridge, review functions and four Options fields. Fully specified struct literals require migration.
+- Document bounded type support, absolute header paths, caller-owned lifetimes and the distinction between emitted checks and executed validation.
+
 ## 0.2.0
 
 - Add strict JSON project configuration with config-relative paths.

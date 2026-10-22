@@ -52,6 +52,9 @@ fn with_context(report : Json, options : Options) -> Json {
         "defines": options.defines,
         "allow_functions": options.allow_functions,
         "rename_functions": options.rename_functions,
+        "strict": options.strict,
+        "bridge": options.bridge,
+        "fail_on": options.fail_on,
       }
       Json::object(fields)
     }
@@ -208,6 +211,8 @@ fn api_entries(
   for f in m.exported_functions() {
     let status = if !allowed.is_empty() && !allowed.contains(f.name) {
       "excluded"
+    } else if m.static_definitions.any(s => s.name == f.name) {
+      "requires_bridge"
     } else if generated.contains("= \"" + f.name + "\"") {
       "generated"
     } else {
@@ -278,6 +283,16 @@ pub fn compare_headers(
   target : @layout.Target,
   allowed : Array[String],
 ) -> Json {
+  let old = {
+    ..old,
+    functions: old.functions +
+    old.static_definitions.map(f => { ..f, internal: false, }),
+  }
+  let new = {
+    ..new,
+    functions: new.functions +
+    new.static_definitions.map(f => { ..f, internal: false, }),
+  }
   let before = api_entries(old, target, allowed)
   let after = api_entries(new, target, allowed)
   let keys : Array[String] = []
@@ -353,7 +368,7 @@ pub fn compare_headers(
 }
 
 ///|
-fn comparison_text(report : Json) -> String {
+pub fn review_text(report : Json) -> String {
   let out = StringBuilder()
   out.write_string(
     "MoonBind API change report (review candidates, not a binary compatibility verdict)\n",

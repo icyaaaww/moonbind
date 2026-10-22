@@ -9,7 +9,7 @@
 ///|
 /// | The version the binary reports. Kept in step with `moon.mod` by hand, and
 /// | by a test that reads the manifest.
-pub let version : String = "0.2.0"
+pub let version : String = "0.3.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -32,6 +32,10 @@ pub(all) struct Options {
   pub allow_functions : Array[String]
   pub native_sources : Array[String]
   pub rename_functions : Map[String, String]
+  pub strict : Bool
+  pub bridge : Bool
+  pub html : Bool
+  pub fail_on : String
 } derive(Debug, Eq)
 
 ///|
@@ -53,7 +57,14 @@ pub fn usage() -> String {
     "  --define <M=V>      define a macro before parsing", "  --report            list the declarations that were left out, and why",
     "  --verify            print the record layout table instead of bindings", "  --version           print the version and exit",
     "  --help              print this text and exit", "", "A declaration is left out rather than emitted approximately: a binding",
-    "whose layout differs from the header's is worse than a missing one.",
+    "whose layout differs from the header's is worse than a missing one.", "", "Project workflow:",
+    "  --config <file>        load JSON configuration", "  --allow <function>     select a C function (repeatable)",
+    "  --rename <C=MoonBit>    rename a generated function", "  --native-source <file> add a C source relative to generated package",
+    "  --check                check output without writing", "  --json                 structured report",
+    "  --strict               reject parser diagnostics and skipped selected functions",
+    "  --bridge               generate a C adapter and compile-time layout checks",
+    "  --compare <old.h>      compare current header against old header", "  --html                 offline comparison report on stdout",
+    "  --fail-on <rule>        none, removed, changed (includes removals), any",
   ]
   let buf = StringBuilder()
   for i, l in lines {
@@ -83,6 +94,10 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let allow_functions : Array[String] = []
   let native_sources : Array[String] = []
   let rename_functions : Map[String, String] = Map([])
+  let mut strict = false
+  let mut bridge = false
+  let mut html = false
+  let mut fail_on = "none"
   let mut i = 0
   // A `--out` with no value is the one error that can be spotted in the loop;
   // everything else is checked once the whole list has been read.
@@ -92,6 +107,18 @@ pub fn parse_args(argv : Array[String]) -> Args {
     match arg {
       "--help" | "-h" => return Help
       "--version" | "-V" => return Version
+      "--strict" => {
+        strict = true
+        i = i + 1
+      }
+      "--bridge" => {
+        bridge = true
+        i = i + 1
+      }
+      "--html" => {
+        html = true
+        i = i + 1
+      }
       "--report" => {
         report = true
         i = i + 1
@@ -116,6 +143,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
       | "--compare"
       | "--allow"
       | "--native-source"
+      | "--fail-on"
       | "--rename" =>
         if i + 1 >= argv.length() {
           missing = Some(arg)
@@ -123,6 +151,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
         } else {
           let value = argv[i + 1]
           match arg {
+            "--fail-on" => fail_on = value
             "--out" => out = Some(value)
             "--target" =>
               match @layout.Target::parse(value) {
@@ -168,6 +197,21 @@ pub fn parse_args(argv : Array[String]) -> Args {
     Some(flag) => return Bad("option " + flag + " needs a value")
     None => ()
   }
+  if !["none", "removed", "changed", "any"].contains(fail_on) {
+    return Bad("--fail-on expects none, removed, changed or any")
+  }
+  if (html || fail_on != "none") && compare is None && config is None {
+    return Bad("--html and --fail-on require --compare")
+  }
+  if html && json {
+    return Bad("--html and --json are mutually exclusive")
+  }
+  if bridge && (verify || compare is Some(_)) {
+    return Bad("--bridge cannot be combined with --verify or --compare")
+  }
+  if bridge && out is None && config is None {
+    return Bad("--bridge requires --out")
+  }
   if check && out is None && config is None {
     return Bad("--check requires --out")
   }
@@ -199,6 +243,10 @@ pub fn parse_args(argv : Array[String]) -> Args {
         allow_functions,
         native_sources,
         rename_functions,
+        strict,
+        bridge,
+        html,
+        fail_on,
       })
   }
 }

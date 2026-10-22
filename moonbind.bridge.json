@@ -1,0 +1,9 @@
+{
+  "header": "testdata/bridge/point.h",
+  "out": "_build/point-bridge",
+  "target": "x86_64",
+  "bridge": true,
+  "strict": true,
+  "allow_functions": ["point_add", "point_sum", "twice"],
+  "fail_on": "changed"
+}

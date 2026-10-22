@@ -31,7 +31,7 @@ pub fn config_args(
   for key, _ in fields {
     if ![
         "header", "out", "target", "include_paths", "defines", "allow_functions",
-        "native_sources", "rename_functions",
+        "native_sources", "rename_functions", "strict", "bridge", "fail_on",
       ].contains(key) {
       raise Failed("unknown configuration field: " + key)
     }
@@ -102,6 +102,28 @@ pub fn config_args(
       }
     }
     _ => raise Failed("rename_functions must be an object")
+  }
+  for key in ["strict", "bridge"] {
+    match fields.get(key) {
+      None | Some(False) => ()
+      Some(True) => if !(comparing && key == "bridge") { args.push("--" + key) }
+      _ => raise Failed(key + " must be a boolean")
+    }
+  }
+  if comparing {
+    match fields.get("fail_on") {
+      None => ()
+      Some(String(rule)) => {
+        args.push("--fail-on")
+        args.push(rule)
+      }
+      _ => raise Failed("fail_on must be a string")
+    }
+  } else if fields.get("fail_on") is Some(value) {
+    match value {
+      String(rule) if ["none", "removed", "changed", "any"].contains(rule) => ()
+      _ => raise Failed("fail_on must be none, removed, changed or any")
+    }
   }
   args
 }

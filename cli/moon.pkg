@@ -7,4 +7,5 @@ import {
   "icyaaaww/moonbind/source",
   "moonbitlang/x/fs",
   "moonbitlang/core/json",
+  "moonbitlang/core/env",
 }

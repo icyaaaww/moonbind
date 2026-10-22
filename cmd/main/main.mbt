@@ -51,11 +51,35 @@ fn drive(argv : Array[String]) -> Int32 {
     }
     @cli.Run(options) => options
   }
-  let text = @cli.run(options) catch {
+  let execution = if options.compare is Some(_) {
+    { ..options, json: true, html: false, }
+  } else {
+    options
+  }
+  let raw = @cli.run(execution) catch {
     @cli.Failed(message) => {
       report_error(argv, message)
       return 1
     }
+  }
+  let mut blocked = false
+  let text = if options.compare is Some(_) {
+    let report = @json.parse(raw) catch {
+      _ => {
+        eprintln("invalid comparison report")
+        return 1
+      }
+    }
+    blocked = @cli.review_blocked(report, options.fail_on)
+    if options.html {
+      @cli.review_html(report)
+    } else if options.json {
+      raw
+    } else {
+      @cli.review_text(report)
+    }
+  } else {
+    raw
   }
   // `--verify` produces a table to read, not a package to write, so it prints
   // whether or not `--out` was given.
@@ -65,6 +89,9 @@ fn drive(argv : Array[String]) -> Int32 {
       if options.verify || options.json || options.check {
         println(text)
       }
+  }
+  if blocked {
+    return 3
   }
   0
 }

@@ -87,6 +87,18 @@ fn Cursor::parse_record_body(
     let specs = Specs::new()
     let attrs = Attrs::new()
     self.parse_specs(specs, attrs)
+    if specs.base == BUnset &&
+      specs.tag is None &&
+      specs.named is None &&
+      specs.signed is None &&
+      specs.short == 0 &&
+      specs.long == 0 {
+      self.diagnose(
+        self.peek(),
+        "unknown_field_type",
+        "field type is missing or unsupported",
+      )
+    }
     self.skip_attributes(attrs)
     if self.accept(";") {
       // A declaration with no declarator inside a record: a C11 anonymous
@@ -138,10 +150,25 @@ fn Cursor::parse_record_body(
         break
       }
     }
-    let _ = self.accept(";")
+    if !self.accept(";") {
+      self.diagnose(
+        self.peek(),
+        "missing_field_semicolon",
+        "expected semicolon after field",
+      )
+      if !self.at_end() && !self.at("}") {
+        let _ = self.next()
+      }
+    }
     self.commit_specs(specs)
   }
-  let _ = self.accept("}")
+  if !self.accept("}") {
+    self.diagnose(
+      self.peek(),
+      "unclosed_record",
+      "expected closing record brace",
+    )
+  }
   let _ = kind
   let _ = tag
   fields
@@ -214,7 +241,9 @@ fn Cursor::parse_enum_body(
       break
     }
   }
-  let _ = self.accept("}")
+  if !self.accept("}") {
+    self.diagnose(self.peek(), "unclosed_enum", "expected closing enum brace")
+  }
   let _ = tag
   items
 }
@@ -285,9 +314,23 @@ fn Cursor::parse_specs(self : Cursor, specs : Specs, attrs : Attrs) -> Unit {
       return
     }
     let text = t.text
+    if text == "_Atomic" {
+      self.diagnose(
+        t, "unsupported_atomic", "atomic type representation is not supported",
+      )
+    }
     if is_attribute_keyword(text) {
       let _ = self.next()
       let inner = self.take_balanced("(", ")")
+      if inner.any(tok => {
+          [
+            "vector_size", "__vector_size__", "mode", "ms_abi", "stdcall", "fastcall",
+          ].contains(tok.text)
+        }) {
+        self.diagnose(
+          t, "unsupported_attribute", "ABI-changing attribute is not supported",
+        )
+      }
       self.apply_attribute(inner, attrs)
       continue
     }
@@ -349,6 +392,11 @@ fn Cursor::parse_specs(self : Cursor, specs : Specs, attrs : Attrs) -> Unit {
         let _ = self.next()
       }
       "long" => {
+        if specs.base == BDouble {
+          self.diagnose(
+            t, "unsupported_long_double", "long double cannot be approximated as double",
+          )
+        }
         specs.long = specs.long + 1
         let _ = self.next()
       }
@@ -357,6 +405,11 @@ fn Cursor::parse_specs(self : Cursor, specs : Specs, attrs : Attrs) -> Unit {
         let _ = self.next()
       }
       "double" => {
+        if specs.long > 0 {
+          self.diagnose(
+            t, "unsupported_long_double", "long double cannot be approximated as double",
+          )
+        }
         specs.base = BDouble
         let _ = self.next()
       }
@@ -369,6 +422,9 @@ fn Cursor::parse_specs(self : Cursor, specs : Specs, attrs : Attrs) -> Unit {
         let _ = self.next()
       }
       "_Complex" | "__complex__" => {
+        self.diagnose(
+          t, "unsupported_complex", "complex values cannot be approximated as scalars",
+        )
         // Complex values are not part of the supported ABI surface; reading
         // the keyword keeps the declaration parseable as a plain type.
         let _ = self.next()
@@ -376,6 +432,11 @@ fn Cursor::parse_specs(self : Cursor, specs : Specs, attrs : Attrs) -> Unit {
       "__int8" | "__int16" | "__int32" | "__int64" | "__int128" => {
         // MSVC spells fixed-width integers this way. The width cannot be
         // recovered from `short`/`long`, so it is recorded outright.
+        if text == "__int128" {
+          self.diagnose(
+            t, "unsupported_integer", "128-bit integer ABI is not supported",
+          )
+        }
         specs.exact_bits = Some(
           match text {
             "__int8" => 8

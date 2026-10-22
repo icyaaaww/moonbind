@@ -3,7 +3,7 @@
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.2.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.3.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 [English / 技术设计详解](README.mbt.md) · [Mooncakes 包文档](https://mooncakes.io/docs/icyaaaww/moonbind) · [示例代码](examples) · [反馈问题](https://github.com/icyaaaww/moonbind/issues)
@@ -12,23 +12,26 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-当前发布版本为 **0.2.0**，适合试用、生成初始绑定和检查布局。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+当前发布版本为 **0.3.0**，适合试用、生成初始绑定和检查布局。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
 
-## 0.2 新增：生成之后，也能维护
+## 0.3 新增：适配按值调用，检查升级风险
 
-- **项目配置**：保存宏、包含路径、目标、函数筛选、重命名与 C 源文件设置。
-- **安全更新**：写入前检测用户修改；`--check` 检查产物是否过期。
-- **升级对比**：列出声明和布局变化，追踪受影响函数。
-- **结构化报告**：查看生成、跳过和排除的接口，支持 JSON 错误输出。
-- **真实库验证**：CI 从头生成 SQLite、zlib 绑定，再编译、链接并实际调用。
+- **C 适配层**：`--bridge` 为简单结构体按值参数/返回值和静态内联函数生成 C 包装代码。
+- **明确的内存接口**：创建、字段读写和释放函数；调用方检查空指针并管理生命周期。
+- **解析诊断**：提供文件、行列、token 和原因；存在已知诊断时拒绝生成，`--strict` 还拒绝跳过所选函数。
+- **升级规则**：`--fail-on removed|changed|any` 可让 CI 因声明变化而失败。
+- **离线 HTML**：展示变化前后内容、受影响函数和分析上下文。
+- **原生验证**：CI 实际调用生成接口，并通过 C 包装层的 ASan/UBSan 检查及头文件布局变化反例。
 
-详见 [0.2 使用指南](docs/v0.2.md) 和 [更新记录](CHANGELOG.md)。
+详见 [0.3 使用指南与支持边界](docs/v0.3.md)、[0.2 维护功能](docs/v0.2.md) 和 [更新记录](CHANGELOG.md)。
 
 ```sh
-moon run cmd/main --target wasm-gc -- --config moonbind.example.json
-moon run cmd/main --target wasm-gc -- --config moonbind.example.json --check
-moon run cmd/main --target wasm-gc -- testdata/upgrade/v2.h --compare testdata/upgrade/v1.h --json
+moon run cmd/main --target wasm-gc -- --config moonbind.bridge.json
+moon run cmd/main --target wasm-gc -- --config moonbind.bridge.json --check
+moon run cmd/main --target wasm-gc -- testdata/bridge/point-v2.h --compare testdata/bridge/point.h --fail-on changed --html > upgrade-review.html
 ```
+
+最后一条命令预期退出码为 **3**，表示升级规则阻止通过；生成的 HTML 可直接打开。
 
 ## 能解决什么问题
 
@@ -85,7 +88,7 @@ _build/generated-greet/
 在已有 MoonBit 模块中安装：
 
 ```sh
-moon add icyaaaww/moonbind@0.2.0
+moon add icyaaaww/moonbind@0.3.0
 ```
 
 按需在调用方的 `moon.pkg` 中导入子包；模块根包不提供生成器 API：
@@ -159,7 +162,7 @@ moon test --target wasm-gc
 moon fmt --check
 ```
 
-0.2 包含 **96 项 MoonBit 测试**，另有独立 CLI 黑盒检查，以及从头生成 SQLite / zlib 绑定的原生集成验证。0.1 发布时还完成了独立项目从 Mooncakes 下载依赖后的使用验证。
+0.3 包含 **106 项 MoonBit 测试**，另有独立 CLI 黑盒检查，以及从头生成 SQLite / zlib 绑定的原生集成验证。0.1 发布时还完成了独立项目从 Mooncakes 下载依赖后的使用验证。
 
 具备 Bash、clang、awk、sort 和 diff 的环境还可以运行：
 

@@ -117,7 +117,13 @@ fn Cursor::parse_direct_declarator(self : Cursor) -> (String, Array[Ctor]) {
   if self.at("(") && self.starts_grouped_declarator() {
     let _ = self.next()
     let inner = self.parse_declarator()
-    let _ = self.accept(")")
+    if !self.accept(")") {
+      self.diagnose(
+        self.peek(),
+        "unclosed_declarator",
+        "expected closing parenthesis",
+      )
+    }
     name = inner.name
     chain.append(inner.chain)
   } else if self.peek().kind == @lex.Ident {
@@ -205,6 +211,18 @@ fn Cursor::parse_param_list(self : Cursor) -> (Array[@ast.CParam], Bool) {
     let specs = Specs::new()
     let attrs = Attrs::new()
     self.parse_specs(specs, attrs)
+    if specs.base == BUnset &&
+      specs.tag is None &&
+      specs.named is None &&
+      specs.signed is None &&
+      specs.short == 0 &&
+      specs.long == 0 {
+      self.diagnose(
+        self.peek(),
+        "unknown_parameter_type",
+        "parameter type is missing or unsupported",
+      )
+    }
     if self.at(")") || self.at(",") {
       // A prototype that gives only the type, as in `void f(int, char)`.
       params.push(@ast.CParam::{ name: "", ty: specs.resolve(self.platform), })
@@ -221,7 +239,13 @@ fn Cursor::parse_param_list(self : Cursor) -> (Array[@ast.CParam], Bool) {
       break
     }
   }
-  let _ = self.accept(")")
+  if !self.accept(")") {
+    self.diagnose(
+      self.peek(),
+      "unclosed_parameters",
+      "expected closing parenthesis",
+    )
+  }
   (params, variadic)
 }
 

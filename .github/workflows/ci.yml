@@ -41,5 +41,18 @@ jobs:
       - name: Regenerate, compile and run SQLite and zlib bindings
         run: python3 scripts/verify-workflow.py --native
 
+      - name: Strict diagnostics, bridge runtime and sanitizer validation
+        run: python3 scripts/verify-v03.py --native
+
+      - name: Preserve validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonbind-validation
+          path: |
+            _build/v03-*/validation-results.json
+            _build/v03-*/upgrade-review.html
+          if-no-files-found: ignore
+
       - name: Format
         run: moon fmt --check

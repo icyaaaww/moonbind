@@ -332,6 +332,9 @@ fn Cursor::take_balanced(
     }
     inner.push(t)
   }
+  if depth != 0 {
+    self.diagnose(self.peek(), "unclosed_group", "expected closing " + close)
+  }
   inner
 }
 
@@ -353,6 +356,11 @@ fn Cursor::skip_type_qualifiers(self : Cursor) -> Unit {
       t.text == "__volatile" ||
       t.text == "__volatile__" ||
       t.text == "_Atomic" {
+      if t.text == "_Atomic" {
+        self.diagnose(
+          t, "unsupported_atomic", "atomic qualifiers are not supported",
+        )
+      }
       let _ = self.next()
     } else {
       return
@@ -371,6 +379,15 @@ fn Cursor::skip_attributes(self : Cursor, attrs : Attrs) -> Unit {
     if t.kind == @lex.Ident && is_attribute_keyword(t.text) {
       let _ = self.next()
       let inner = self.take_balanced("(", ")")
+      if inner.any(tok => {
+          [
+            "vector_size", "__vector_size__", "mode", "ms_abi", "stdcall", "fastcall",
+          ].contains(tok.text)
+        }) {
+        self.diagnose(
+          t, "unsupported_attribute", "ABI-changing attribute is not supported",
+        )
+      }
       self.apply_attribute(inner, attrs)
       continue
     }
@@ -386,6 +403,9 @@ fn Cursor::skip_attributes(self : Cursor, attrs : Attrs) -> Unit {
     // not recoverable from the generated binding, which uses the C
     // identifier, so the assembler label is dropped.
     if t.kind == @lex.Ident && (t.text == "__asm__" || t.text == "asm") {
+      self.diagnose(
+        t, "symbol_alias", "assembler symbol renaming is not supported",
+      )
       let save = self.pos
       let _ = self.next()
       if self.at("(") {
@@ -455,4 +475,21 @@ fn literal_of(toks : Array[@lex.Token]) -> Int64? {
   } else {
     None
   }
+}
+
+///|
+fn Cursor::diagnose(
+  self : Cursor,
+  token : @lex.Token,
+  code : String,
+  message : String,
+) -> Unit {
+  self.module.diagnostics.push({
+    code,
+    file: token.file,
+    line: token.line,
+    column: token.col,
+    token: token.text,
+    message,
+  })
 }

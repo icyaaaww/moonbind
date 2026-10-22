@@ -22,11 +22,17 @@ pub fn run(options : Options) -> String raise RunError {
     @cp.Failed(err) =>
       raise Failed("could not read " + options.header + ": " + err)
   }
+  if options.strict && !parsed.diagnostics.is_empty() {
+    raise Failed(diagnostic_text(parsed))
+  }
   // `--verify` answers a different question — where the compiler will put each
   // field — so it neither generates bindings nor writes a package. It prints
   // the table the layout engine believes, which CI diffs against one produced
   // by clang on the same header.
   if options.verify {
+    if !parsed.diagnostics.is_empty() {
+      raise Failed(diagnostic_text(parsed))
+    }
     return @layout.layout_table(options.target, parsed)
   }
   if options.compare is Some(old_header) {
@@ -34,15 +40,39 @@ pub fn run(options : Options) -> String raise RunError {
       @cp.Failed(err) =>
         raise Failed("could not read " + old_header + ": " + err)
     }
-    let report = with_context(
+    if options.strict && !old.diagnostics.is_empty() {
+      raise Failed(diagnostic_text(old))
+    }
+    let report = decorate_comparison(
       compare_headers(old, parsed, options.target, options.allow_functions),
+      old,
+      parsed,
       options,
     )
-    return if options.json {
+    return if options.html {
+      review_html(report)
+    } else if options.json {
       report.stringify(indent=2)
     } else {
-      comparison_text(report)
+      review_text(report)
     }
+  }
+  // Unknown syntax never produces potentially incorrect bindings. Non-strict
+  // report-only mode can still show all diagnostics without writing a package.
+  if !parsed.diagnostics.is_empty() {
+    if options.json && options.out is None {
+      let report : Json = {
+        "schema_version": 1,
+        "generator_version": version,
+        "status": "incomplete",
+        "diagnostics": diagnostics_json(parsed),
+      }
+      return report.stringify(indent=2)
+    }
+    raise Failed(diagnostic_text(parsed))
+  }
+  if options.bridge {
+    return run_bridge(parsed, options)
   }
   for name in options.allow_functions {
     if !parsed.exported_functions().any(f => f.name == name) {
@@ -58,6 +88,15 @@ pub fn run(options : Options) -> String raise RunError {
     options.target,
     function_names=options.rename_functions,
   )
+  if options.strict {
+    for skip in skips {
+      if selected.functions.any(f => f.name == skip.name) {
+        raise Failed(
+          "selected function unsupported: " + skip.name + ": " + skip.reason,
+        )
+      }
+    }
+  }
   for c_name, moon_name in options.rename_functions {
     if text.contains("= \"" + c_name + "\"") &&
       !text
@@ -93,6 +132,7 @@ pub fn run(options : Options) -> String raise RunError {
           @codegen.package_manifest(native_sources=options.native_sources),
         ),
         ("moonbind-report.json", report.stringify(indent=2) + "\n"),
+        ("bridge.c", "/* Bridge disabled for this package. */\n"),
       ])
       write_managed(dir, files, options.check)
     }

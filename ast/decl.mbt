@@ -102,6 +102,8 @@ pub(all) struct CModule {
   pub constants : Array[CConstDecl]
   /// Include paths that were actually read, in order, for diagnostics.
   pub sources : Array[String]
+  pub diagnostics : Array[Diagnostic]
+  pub static_definitions : Array[CFnDecl]
 } derive(Debug)
 
 ///|
@@ -114,6 +116,8 @@ pub fn CModule::new() -> CModule {
     functions: [],
     constants: [],
     sources: [],
+    diagnostics: [],
+    static_definitions: [],
   }
 }
 
@@ -314,3 +318,13 @@ pub fn CModule::sorted_typedef_names(self : CModule) -> Array[String] {
 pub fn CModule::exported_functions(self : CModule) -> Array[CFnDecl] {
   self.functions.filter(f => !f.internal)
 }
+
+///|
+pub(all) struct Diagnostic {
+  code : String
+  file : String
+  line : Int32
+  column : Int32
+  token : String
+  message : String
+} derive(Debug)

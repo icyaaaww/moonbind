@@ -24,6 +24,12 @@ pub fn platform_for(@layout.Target) -> @cp.Platform
 
 pub fn prepare_args(Array[String]) -> Args raise RunError
 
+pub fn review_blocked(Json, String) -> Bool
+
+pub fn review_html(Json) -> String
+
+pub fn review_text(Json) -> String
+
 pub fn run(Options) -> String raise RunError
 
 pub fn summary(@ast.CModule, Array[@codegen.Skip]) -> String
@@ -62,6 +68,10 @@ pub(all) struct Options {
   allow_functions : Array[String]
   native_sources : Array[String]
   rename_functions : Map[String, String]
+  strict : Bool
+  bridge : Bool
+  html : Bool
+  fail_on : String
 } derive(Eq, @debug.Debug)
 
 // Type aliases
