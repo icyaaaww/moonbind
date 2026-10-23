@@ -1,0 +1,7 @@
+{
+  "install_version": "0.10.16+b1a0e846e",
+  "moon": "0.1.20261016 (1af328f 2026-10-16)",
+  "moonc": "v0.10.16+b1a0e846e (2026-10-16)",
+  "dependency": "moonbitlang/x@0.5.5",
+  "note": "Release CI pins this official distribution. Separate latest compatibility CI does not change the release baseline. Platform C compilers are recorded by CI; native binaries are not claimed bit-reproducible."
+}

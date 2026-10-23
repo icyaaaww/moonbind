@@ -102,6 +102,12 @@ pub fn run(options : Options) -> String raise RunError {
     }
   }
   let selected = selected_module(parsed, options.allow_functions)
+  if options.c_namespace != "" &&
+    parsed.exported_functions().any(f => f.name.has_prefix("moonbind_")) {
+    raise Failed(
+      "c_namespace reserves C function names starting with moonbind_; use an explicit adapter",
+    )
+  }
   validate_renames(selected, options.rename_functions)
   let (raw_text, skips) = @codegen.generate(
     selected,
@@ -199,6 +205,7 @@ pub fn run(options : Options) -> String raise RunError {
         ("moonbind-report.json", report.stringify(indent=2) + "\n"),
         ("bridge.c", "/* Bridge disabled for this package. */\n"),
       ])
+      namespace_helpers(files, options.c_namespace)
       write_managed(dir, files, options.check)
     }
   }

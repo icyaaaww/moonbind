@@ -18,9 +18,11 @@ import subprocess
 import sys
 import tempfile
 import time
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import moonbind_workflows as workflows
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "0.9.0"
+VERSION = "1.0.0"
 IGNORE = {"_build", ".git", ".mooncakes", "__pycache__", "reports"}
 
 
@@ -81,6 +83,8 @@ def load_project(root):
     c = read_json(config)
     if not isinstance(c, dict):
         raise ValueError("Generator configuration must be a JSON object")
+    if type(c.get("schema_version", 1)) is not int or c.get("schema_version", 1) != 1:
+        raise ValueError("Unsupported binding schema_version; expected integer 1. Use a compatible MoonBind version")
     # Paths in the generator config resolve relative to that config.
     for key in ("header", "out"):
         if key not in c:
@@ -177,6 +181,20 @@ def windows_compiler():
 
 
 def doctor(root):
+    root = Path(root).resolve()
+    try:
+        return doctor_project(root)
+    except (OSError, ValueError, RuntimeError, KeyError, TypeError) as e:
+        report = {"schema_version": 1, "version": VERSION, "status": "failed", "error": str(e),
+                  "diagnostics": [{"code": "project_configuration", "message": str(e),
+                                   "path": str(root / "moonbind.project.json"),
+                                   "remedy": "Run from an initialized project. Check binding_config and the indicated file; use migrate to preview a legacy config update."}]}
+        if root.is_dir():
+            write_json(root / "reports/doctor.json", report)
+        return report
+
+
+def doctor_project(root):
     root, p, config, c = load_project(root)
     moon = run(["moon", "version", "--all"])
     cc_env = None
@@ -210,6 +228,19 @@ def doctor(root):
               "host": {"system": platform.system(), "machine": platform.machine()}, "target": target,
               "native_model_supported": supported, "checks": checks,
               "scope": "Native LP64 Linux/macOS and Windows x64 LLP64 with MSVC; header probe does not prove library linkage or runtime behavior."}
+    remedies = {
+        "moon": "Install MoonBit and put its bin directory on PATH, then run moon update in this project.",
+        "compiler": "Install MSVC Build Tools with Windows SDK (Windows), Xcode command line tools (macOS), or clang/gcc (Linux).",
+        "header_probe_compile": "Check the header, include_paths and defines in " + str(config) + "; inspect the compiler output below.",
+        "header_probe_run": "Check executable permissions and runtime dependencies; confirm the compiler targets this host.",
+    }
+    result["diagnostics"] = [{"code": k, "message": v.get("stderr", "")[-3000:], "remedy": remedies[k]}
+                             for k, v in checks.items() if v.get("exit_code") != 0]
+    if not supported:
+        result["diagnostics"].append({"code": "target_model", "path": str(config),
+                                     "message": f"Configured {target}; host {host_target()}; probed pointer/long bytes {model!r}",
+                                     "remedy": "For native validation choose the actual host target, then regenerate and rerun doctor."})
+    result["paths"] = {"python": sys.executable, "moon": shutil.which("moon"), "compiler": cc, "config": str(config)}
     write_json(root / "reports/doctor.json", result)
     return result
 
@@ -383,7 +414,7 @@ def init_project(destination, template, target, recipe=None):
         (staging / "vendor").mkdir()
         (staging / "main").mkdir()
         (staging / "bindings").mkdir()
-        config = {"header": "vendor/api.h", "out": "bindings", "target": target, "strict": True}
+        config = {"schema_version": 1, "header": "vendor/api.h", "out": "bindings", "target": target, "strict": True}
         module = "moonbind_examples/" + template
         pkg = 'import { "' + module + '/bindings" @lib, "moonbitlang/core/encoding/utf8" }\nsupported_targets = "native"\npkgtype(kind: "executable")\n'
         files = []
@@ -568,7 +599,7 @@ def upgrade_review(root, old_header):
               "next_steps": ["Review listed contracts and call sites", "Edit configuration intentionally", "Run generate then validate"],
               "scope": "Source comparison under configured macros/ABI; old transitive includes must remain available. Does not infer semantic/lifetime compatibility."}
     write_json(root / "reports/upgrade.json", report)
-    (root / "reports/upgrade.html").write_text(render_report(report), encoding="utf-8")
+    (root / "reports/upgrade.html").write_text(workflows.render_upgrade(report), encoding="utf-8")
     return report
 
 
@@ -655,7 +686,13 @@ def main():
     upgrade.add_argument("project")
     upgrade.add_argument("--against", required=True, help="Previous header; preserve its original transitive includes")
     install = commands.add_parser("install", help="Create a launcher pointing at this source checkout")
-    install.add_argument("--bin", required=True, dest="bin_directory")
+    mode = install.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--bin", dest="bin_directory")
+    mode.add_argument("--prefix", help="Install a self-contained versioned source copy and launcher")
+    for name in ("migrate", "upgrade-apply"):
+        sub = commands.add_parser(name)
+        sub.add_argument("project", nargs="?", default=".")
+        sub.add_argument("--apply", action="store_true", help="Back up and write reviewed config edits; default is preview")
     for name in ("doctor", "generate", "validate", "report-check"):
         sub = commands.add_parser(name)
         sub.add_argument("project", nargs="?", default=".")
@@ -670,13 +707,17 @@ def main():
         elif args.command == "upgrade":
             result = upgrade_review(args.project, args.against)
         elif args.command == "install":
-            result = install_launcher(args.bin_directory)
+            result = workflows.install_copy(sys.modules[__name__], args.prefix) if args.prefix else install_launcher(args.bin_directory)
+        elif args.command == "migrate":
+            result = workflows.migrate(sys.modules[__name__], args.project, args.apply)
+        elif args.command == "upgrade-apply":
+            result = workflows.apply_upgrade(sys.modules[__name__], args.project, args.apply)
         elif args.command == "generate":
             result = generate(args.project, args.check)
         else:
             result = {"doctor": doctor, "validate": validate, "report-check": report_check}[args.command](args.project)
         if args.command in {"doctor", "validate"}:
-            print(json.dumps({"status": result["status"], "reports": str(Path(args.project).resolve() / "reports"), "error": result.get("error")}, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": result["status"], "reports": str(Path(args.project).resolve() / "reports"), "error": result.get("error"), "diagnostics": result.get("diagnostics", [])}, ensure_ascii=False, indent=2))
         else:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         if result.get("status") == "review_required":

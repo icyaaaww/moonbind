@@ -9,7 +9,7 @@
 ///|
 /// | The version the binary reports. Kept in step with `moon.mod` by hand, and
 /// | by a test that reads the manifest.
-pub let version : String = "0.9.0"
+pub let version : String = "1.0.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -45,6 +45,7 @@ pub(all) struct Options {
   pub callbacks : Map[String, String]
   pub copy_strings : Array[String]
   pub trace_calls : Bool
+  pub c_namespace : String
   pub fail_on : String
 } derive(Debug, Eq)
 
@@ -77,6 +78,7 @@ pub fn usage() -> String {
     "  --own <create=free>    generate scoped cleanup (explicit contract)", "  --buffer <fn=ptr:len>  derive byte length from a Bytes parameter",
     "  --status <fn=code>    map signed int success code to Result", "  --out-param <fn=arg>  preserve output handle on success and error",
     "  --null-param <fn=a,b> pass NULL for configured pointer parameters", "  --callback <fn=cb:ctx:abort> synchronous context-first int callback",
+    "  --c-namespace <id>  scope C helpers when linking multiple generated packages",
     "  --trace-calls         record generated C adapter entries (opt-in)", "  --copy-string <fn>    copy a borrowed NUL string result immediately",
     "  --output-buffer <fn=dst:cap:src:len:is_error:max_bytes> bounded output", "  --managed-output <fn=free:success:retained|released> tracked output handle",
     "  --fail-on <rule>        none, removed, changed (includes removals), any",
@@ -122,6 +124,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
   let callbacks : Map[String, String] = Map([])
   let copy_strings : Array[String] = []
   let mut trace_calls = false
+  let mut c_namespace = ""
   let mut fail_on = "none"
   let mut i = 0
   // A `--out` with no value is the one error that can be spotted in the loop;
@@ -176,6 +179,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
       | "--own"
       | "--output-buffer"
       | "--managed-output"
+      | "--c-namespace"
       | "--buffer"
       | "--status"
       | "--out-param"
@@ -202,6 +206,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                   )
               }
             "--copy-string" => copy_strings.push(value)
+            "--c-namespace" => c_namespace = value
             "--own" | "--buffer" | "--output-buffer" | "--managed-output" => {
               let parts = value.split("=").to_array()
               if parts.length() != 2 ||
@@ -339,6 +344,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
         bridge,
         html,
         trace_calls,
+        c_namespace,
         fail_on,
         ownership,
         buffers,

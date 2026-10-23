@@ -28,12 +28,18 @@ pub fn config_args(
     Object(fields) => fields
     _ => raise Failed("configuration must be a JSON object")
   }
+  // Versionless 0.x configurations retain their original schema-1 semantics.
+  match fields.get("schema_version") {
+    None | Some(Number(1)) => ()
+    _ => raise Failed("unsupported binding schema_version; expected 1")
+  }
   for key, _ in fields {
     if ![
         "header", "out", "target", "include_paths", "defines", "allow_functions",
         "native_sources", "rename_functions", "strict", "bridge", "fail_on", "ownership",
         "status_codes", "out_params", "null_params", "callbacks", "trace_calls",
-        "buffers", "copy_strings", "output_buffers", "managed_outputs",
+        "buffers", "copy_strings", "output_buffers", "managed_outputs", "schema_version",
+        "c_namespace",
       ].contains(key) {
       raise Failed("unknown configuration field: " + key)
     }
@@ -43,12 +49,14 @@ pub fn config_args(
     Some(String(s)) if s != "" => args.push(config_path(base, s))
     _ => raise Failed("configuration requires a nonempty header string")
   }
-  for key in ["out", "target"] {
+  for key in ["out", "target", "c_namespace"] {
     match fields.get(key) {
       None => ()
       Some(String(s)) if s != "" =>
         if !(comparing && key == "out") {
-          args.push("--" + key)
+          args.push(
+            "--" + (if key == "c_namespace" { "c-namespace" } else { key }),
+          )
           args.push(if key == "out" { config_path(base, s) } else { s })
         }
       _ => raise Failed(key + " must be a nonempty string")

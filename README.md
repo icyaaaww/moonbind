@@ -3,7 +3,7 @@
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.9.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-1.0.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 [English / 技术设计详解](README.mbt.md) · [Mooncakes 包文档](https://mooncakes.io/docs/icyaaaww/moonbind) · [示例代码](examples) · [反馈问题](https://github.com/icyaaaww/moonbind/issues)
@@ -12,7 +12,25 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-当前版本为 **0.9.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+当前版本为 **1.0.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+
+## 1.0：稳定交付与三库实用应用
+
+- **版本化配置与升级保护**：schema 1、迁移预览、候选验证、原文备份、过期报告拦截。
+- **独立安装**：`install --prefix` 复制版本化源码，启动器不再依赖原始仓库；doctor 提供路径与修复建议。
+- **多库组合**：`c_namespace` 隔离辅助 C 符号，SQLite、Zstandard、cJSON 可以一起链接运行。
+- **目录快照参考应用**：保存、去重、历史差异、清单导出、摘要校验恢复；损坏数据拒绝，已有目标不覆盖。
+- **发布基线**：登记公共 API，固定 MoonBit 工具链，三平台原生验收，生成源码包与 SHA-256 清单。
+
+```sh
+moon update
+python tools/snapshot.py --engine ../snapshot-engine build
+python tools/snapshot.py --engine ../snapshot-engine init ../snapshot-store
+python tools/snapshot.py --engine ../snapshot-engine save ../snapshot-store ../my-documents --id first
+python tools/snapshot.py --engine ../snapshot-engine restore ../snapshot-store first ../restored-documents
+```
+
+快照应用只支持普通文件/目录：单文件 16 MiB，总量 256 MiB，10,000 项；不保留权限/时间戳。Python 管理路径和摘要，三库操作通过生成的 MoonBit 绑定执行；SQLite 保留一层明确的手写适配器。详见 [1.0 安装、迁移、应用与支持边界](docs/v1.0.md)。[独立开发者试用](docs/user-trial-v1.md)仍待执行。
 
 ## 0.9：输出缓冲区、资源恢复与可复用配方
 

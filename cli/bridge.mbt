@@ -16,6 +16,12 @@ fn run_bridge(
   }
   let candidates = parsed.exported_functions()
   candidates.append(parsed.static_definitions)
+  if options.c_namespace != "" &&
+    candidates.any(f => f.name.has_prefix("moonbind_")) {
+    raise Failed(
+      "c_namespace reserves C function names starting with moonbind_; use an explicit adapter",
+    )
+  }
   for name in options.allow_functions {
     if !candidates.any(f => f.name == name) {
       raise Failed("unknown bridge function: " + name)
@@ -153,6 +159,7 @@ fn run_bridge(
       with_context(report, options).stringify(indent=2) + "\n",
     ),
   ])
+  namespace_helpers(files, options.c_namespace)
   write_managed(dir, files, options.check)
   if options.json {
     with_context(report, options).stringify(indent=2)

@@ -1,0 +1,63 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "icyaaaww/moonbind/layout"
+
+import {
+  "icyaaaww/moonbind/ast",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn layout_module(Target, @ast.CModule) -> Map[String, RecordLayout]
+
+pub fn layout_record(Target, @ast.CModule, String) -> RecordLayout?
+
+pub fn layout_table(Target, @ast.CModule) -> String
+
+pub fn record_row(Target, @ast.CModule, String) -> String?
+
+pub fn size_of(Target, @ast.CModule, @ast.CType) -> (Int32, Int32)
+
+// Errors
+
+// Types and methods
+pub(all) enum Abi {
+  SysV64
+  Aapcs64
+  Wasm32
+  Win64
+} derive(Eq, @debug.Debug)
+
+pub(all) struct FieldLayout {
+  name : String
+  offset : Int32
+  size : Int32
+  align : Int32
+  bit_offset : Int32?
+  bit_width : Int32?
+} derive(Eq, @debug.Debug)
+
+pub(all) struct RecordLayout {
+  tag : String
+  size : Int32
+  align : Int32
+  fields : Array[FieldLayout]
+} derive(Eq, @debug.Debug)
+pub fn RecordLayout::field(Self, String) -> FieldLayout?
+pub fn RecordLayout::offset_of(Self, String) -> Int32?
+
+pub(all) struct Target {
+  abi : Abi
+  pointer_bits : Int32
+} derive(Eq, @debug.Debug)
+pub fn Target::aapcs64() -> Self
+pub fn Target::long_bytes(Self) -> Int32
+pub fn Target::parse(String) -> Self?
+pub fn Target::scalar_align(Self, @ast.CIntKind) -> Int32
+pub fn Target::scalar_size(Self, @ast.CIntKind) -> Int32
+pub fn Target::sysv64() -> Self
+pub fn Target::wasm32() -> Self
+pub fn Target::win64() -> Self
+
+// Type aliases
+
+// Traits

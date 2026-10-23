@@ -5,6 +5,9 @@ on:
     branches: [master, main]
   pull_request:
 
+env:
+  MOONBIT_INSTALL_VERSION: "0.10.16+b1a0e846e"
+
 jobs:
   check:
     name: check / build / test
@@ -31,6 +34,11 @@ jobs:
 
       - name: Test
         run: moon test --target wasm-gc
+
+      - name: Public API baseline
+        run: |
+          moon info
+          python3 scripts/check-api.py
 
       - name: Check the layout table against clang
         run: |
@@ -164,3 +172,63 @@ jobs:
             _build/v09-*/**/reports/*.json
             _build/v09-*/**/reports/*.html
           if-no-files-found: warn
+
+  release-v1:
+    name: 1.0 acceptance / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install pinned MoonBit (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Install pinned MoonBit (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          irm https://cli.moonbitlang.com/install/powershell.ps1 | iex
+          "$env:USERPROFILE\.moon\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Resolve dependencies and record tools
+        run: |
+          moon update
+          moon version --all
+          python --version
+      - name: Migration, copied install, upgrades and three-library snapshots
+        run: python scripts/verify-v1.py
+      - name: Bounded parser corpus
+        run: python scripts/verify-parser-corpus.py
+      - name: Preserve 1.0 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moonbind-1.0-${{ matrix.os }}
+          path: |
+            _build/v1-*/summary.json
+            _build/v1-*/native-calls.txt
+            _build/v1-*/**/reports/*.json
+            _build/parser-corpus-*/summary.json
+          if-no-files-found: warn
+
+  latest-compatibility:
+    name: Latest compiler compatibility
+    runs-on: ubuntu-latest
+    env:
+      MOONBIT_INSTALL_VERSION: latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install current compiler
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - name: Public packages and core tests
+        run: |
+          moon version --all
+          moon update
+          moon test --target wasm-gc

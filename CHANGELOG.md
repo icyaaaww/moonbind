@@ -1,3 +1,14 @@
+# 1.0.0 — 2026-10-23
+
+- Versioned schema-1 binding configuration; preview/apply migration with candidate validation and exact-byte backups.
+- Upgrade suggestions can be applied after snapshot and old-value checks; offline review shows affected configuration and tests.
+- Versioned copied installation and actionable doctor diagnostics.
+- C helper namespaces for multiple generated packages in one native executable.
+- SQLite + Zstandard + cJSON local snapshot application with verified deduplication and restore staging.
+- Public interface baseline, pinned release compiler, deterministic source packaging, cross-platform acceptance and bounded parser corpus.
+- Migration: manually constructed `@cli.Options` needs `c_namespace: ""`; CLI/config callers preserve existing defaults.
+- Independent user trials are pending. Sanitizer coverage is limited to the generated C bridge harness; the application is a bounded reference implementation, not a filesystem-atomic backup service.
+
 # Changelog
 
 ## 0.9.0 — 2026-10-23

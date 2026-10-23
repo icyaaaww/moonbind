@@ -1,3 +1,5 @@
+> **1.0.0** adds versioned configuration, backed-up upgrade application, copied installations, C helper namespaces, and a SQLite/Zstandard/cJSON snapshot application. See [the 1.0 guide](docs/v1.0.md) and [public API baseline](compat/1.0). Independent user trials remain pending.
+
 > **0.9.0** adds bounded output buffers, managed T** resources, pinned SQLite/cJSON/Zstandard recipes, and actionable upgrade review. See [the 0.9 guide](docs/v0.9.md) for current workflows and limitations.
 
 # moonbind
@@ -269,10 +271,10 @@ complete binary compatibility verdicts.
 
 ### Install the Mooncakes library
 
-The 0.8 module version is `icyaaaww/moonbind@0.9.0`:
+The stable module version is `icyaaaww/moonbind@1.0.0`:
 
 ```sh
-moon add --upgrade icyaaaww/moonbind@0.9.0
+moon add --upgrade icyaaaww/moonbind@1.0.0
 ```
 
 Import the stage you need, for example `"icyaaaww/moonbind/layout"` or

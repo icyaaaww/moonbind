@@ -1,0 +1,154 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "icyaaaww/moonbind/ast"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) struct CConstDecl {
+  name : String
+  ty : CType
+  value : Int64
+} derive(@debug.Debug)
+
+pub(all) struct CEnumDecl {
+  tag : String
+  items : Array[CEnumItem]
+  complete : Bool
+} derive(@debug.Debug)
+
+pub(all) struct CEnumItem {
+  name : String
+  value : Int64
+} derive(@debug.Debug)
+
+pub(all) struct CField {
+  name : String
+  mut ty : CType
+  bit_width : Int32?
+  anonymous : Bool
+  align : Int32?
+} derive(@debug.Debug)
+
+pub(all) enum CFloatKind {
+  F32
+  F64
+} derive(Eq, @debug.Debug)
+pub fn CFloatKind::bits(Self) -> Int32
+
+pub(all) struct CFnDecl {
+  name : String
+  mut ret : CType
+  params : Array[CParam]
+  variadic : Bool
+  internal : Bool
+} derive(@debug.Debug)
+
+pub(all) enum CIntKind {
+  CI8
+  CU8
+  CI16
+  CU16
+  CI32
+  CU32
+  CI64
+  CU64
+} derive(Eq, @debug.Debug)
+pub fn CIntKind::bits(Self) -> Int32
+pub fn CIntKind::is_signed(Self) -> Bool
+
+pub(all) struct CModule {
+  records : Map[String, CRecordDecl]
+  enums : Map[String, CEnumDecl]
+  typedefs : Map[String, CTypedef]
+  functions : Array[CFnDecl]
+  constants : Array[CConstDecl]
+  sources : Array[String]
+  diagnostics : Array[Diagnostic]
+  static_definitions : Array[CFnDecl]
+  function_locations : Map[String, Diagnostic]
+} derive(@debug.Debug)
+pub fn CModule::add_function(Self, CFnDecl) -> Unit
+pub fn CModule::add_typedef(Self, CTypedef) -> Unit
+pub fn CModule::define_enum(Self, CEnumDecl) -> Unit
+pub fn CModule::define_record(Self, CRecordDecl) -> Unit
+pub fn CModule::exported_functions(Self) -> Array[CFnDecl]
+pub fn CModule::forward_record(Self, RecordKind, String) -> Unit
+pub fn CModule::function_named(Self, String) -> CFnDecl?
+pub fn CModule::new() -> Self
+pub fn CModule::rename_enum(Self, String, String) -> Unit
+pub fn CModule::rename_record(Self, String, String) -> Unit
+pub fn CModule::resolve_all(Self) -> Unit
+pub fn CModule::resolver(Self) -> (String) -> CType
+pub fn CModule::sorted_enum_tags(Self) -> Array[String]
+pub fn CModule::sorted_record_tags(Self) -> Array[String]
+pub fn CModule::sorted_typedef_names(Self) -> Array[String]
+pub fn CModule::typedef_of(Self, String) -> CType?
+
+pub(all) struct CParam {
+  name : String
+  mut ty : CType
+} derive(@debug.Debug)
+
+pub(all) struct CRecordDecl {
+  tag : String
+  kind : RecordKind
+  fields : Array[CField]
+  complete : Bool
+  mut pack : Int32?
+  mut align : Int32?
+} derive(@debug.Debug)
+
+pub(all) enum CType {
+  Void
+  Int(CIntKind)
+  Float(CFloatKind)
+  Pointer(CType)
+  Array(CType, Int64)
+  Record(String)
+  EnumType(String)
+  Fn(FnSig)
+  Named(String)
+} derive(Eq, @debug.Debug)
+pub fn CType::is_integer(Self) -> Bool
+pub fn CType::is_pointer(Self) -> Bool
+pub fn CType::is_void(Self) -> Bool
+pub fn CType::pointee(Self) -> Self?
+pub fn CType::resolve_names(Self, (String) -> Self) -> Self
+pub fn CType::same(Self, Self) -> Bool
+
+pub(all) struct CTypedef {
+  name : String
+  mut ty : CType
+} derive(@debug.Debug)
+
+pub(all) struct Diagnostic {
+  code : String
+  file : String
+  line : Int32
+  column : Int32
+  token : String
+  message : String
+} derive(@debug.Debug)
+
+pub(all) struct FnSig {
+  ret : CType
+  params : Array[CType]
+  variadic : Bool
+} derive(Eq, @debug.Debug)
+pub fn FnSig::resolve_names(Self, (String) -> CType) -> Self
+pub fn FnSig::same(Self, Self) -> Bool
+
+pub(all) enum RecordKind {
+  Struct
+  Union
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits

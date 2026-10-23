@@ -81,6 +81,7 @@ pub(all) struct Options {
   callbacks : Map[String, String]
   copy_strings : Array[String]
   trace_calls : Bool
+  c_namespace : String
   fail_on : String
 } derive(Eq, @debug.Debug)
 

@@ -1,0 +1,90 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "icyaaaww/moonbind/cli"
+
+import {
+  "icyaaaww/moonbind/ast",
+  "icyaaaww/moonbind/codegen",
+  "icyaaaww/moonbind/cp",
+  "icyaaaww/moonbind/layout",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compare_headers(@ast.CModule, @ast.CModule, @layout.Target, Array[String]) -> Json
+
+pub fn config_args(String, String, comparing? : Bool) -> Array[String] raise RunError
+
+pub fn failure_report(String) -> String
+
+pub fn generation_report(@ast.CModule, @layout.Target, Array[String]) -> Json
+
+pub fn parse_args(Array[String]) -> Args
+
+pub fn platform_for(@layout.Target) -> @cp.Platform
+
+pub fn prepare_args(Array[String]) -> Args raise RunError
+
+pub fn review_blocked(Json, String) -> Bool
+
+pub fn review_html(Json) -> String
+
+pub fn review_text(Json) -> String
+
+pub fn run(Options) -> String raise RunError
+
+pub fn summary(@ast.CModule, Array[@codegen.Skip]) -> String
+
+pub fn update_conflicts(Map[String, String], Map[String, String], Map[String, String]) -> Array[String]
+
+pub fn usage() -> String
+
+pub let version : String
+
+// Errors
+pub(all) suberror RunError {
+  Failed(String)
+}
+
+// Types and methods
+pub(all) enum Args {
+  Help
+  Version
+  Run(Options)
+  Bad(String)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Options {
+  header : String
+  out : String?
+  target : @layout.Target
+  include_paths : Array[String]
+  defines : Array[String]
+  report : Bool
+  verify : Bool
+  config : String?
+  compare : String?
+  json : Bool
+  check : Bool
+  allow_functions : Array[String]
+  native_sources : Array[String]
+  rename_functions : Map[String, String]
+  strict : Bool
+  bridge : Bool
+  html : Bool
+  ownership : Map[String, String]
+  output_buffers : Map[String, String]
+  managed_outputs : Map[String, String]
+  buffers : Map[String, String]
+  status_codes : Map[String, String]
+  out_params : Map[String, String]
+  null_params : Map[String, String]
+  callbacks : Map[String, String]
+  copy_strings : Array[String]
+  trace_calls : Bool
+  c_namespace : String
+  fail_on : String
+} derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
