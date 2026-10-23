@@ -1,0 +1,7 @@
+{
+  "product_version": "1.0.0",
+  "github_tag": "v1.0.0",
+  "mooncakes_version": "0.10.0",
+  "reason": "Mooncakes server rejects major version 1 and requires 0.x.y; confirmed by publish dry-run on 2026-10-23.",
+  "compatibility_baseline": "compat/1.0"
+}

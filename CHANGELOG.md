@@ -1,5 +1,7 @@
 # 1.0.0 — 2026-10-23
 
+Mooncakes distribution: `icyaaaww/moonbind@0.10.0` (registry currently requires major 0). GitHub tag and CLI version: `1.0.0`.
+
 - Versioned schema-1 binding configuration; preview/apply migration with candidate validation and exact-byte backups.
 - Upgrade suggestions can be applied after snapshot and old-value checks; offline review shows affected configuration and tests.
 - Versioned copied installation and actionable doctor diagnostics.

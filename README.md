@@ -3,7 +3,7 @@
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
-[![Mooncakes](https://img.shields.io/badge/Mooncakes-1.0.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
+[![Mooncakes](https://img.shields.io/badge/Mooncakes-0.10.0-blue)](https://mooncakes.io/docs/icyaaaww/moonbind)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
 [English / 技术设计详解](README.mbt.md) · [Mooncakes 包文档](https://mooncakes.io/docs/icyaaaww/moonbind) · [示例代码](examples) · [反馈问题](https://github.com/icyaaaww/moonbind/issues)
@@ -13,6 +13,8 @@
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
 当前版本为 **1.0.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+
+GitHub 正式版为 **v1.0.0**，Mooncakes 对应包为 **`icyaaaww/moonbind@0.10.0`**。Mooncakes 当前服务端只接受 `0.x.y`；这两个版本对应同一次交付，CLI 显示 `1.0.0`。
 
 ## 1.0：稳定交付与三库实用应用
 

@@ -134,9 +134,17 @@ def snapshots(work):
     bad = copy.deepcopy(manifest); bad["schema_version"] = True
     rejected(lambda: s.validate_manifest(bad))
     # Digest validation catches valid compressed content under a false object ID.
-    other = next(p for p in objects if p != obj and p.read_bytes() != valid)
-    obj.write_bytes(other.read_bytes())
-    rejected(lambda: s.restore(engine, store, "first", work / "bad-digest"))
+    false_content = work / "false-content.bin"
+    false_content.write_bytes(b"X" * entry["size"])
+    false_frame = work / "false-frame.zst"
+    s.helper(engine, "pack", false_content, false_frame, entry["size"])
+    obj.write_bytes(false_frame.read_bytes())
+    try:
+        s.restore(engine, store, "first", work / "bad-digest")
+    except ValueError as error:
+        assert "hash mismatch" in str(error), error
+    else:
+        raise AssertionError("Valid same-length frame with false content was accepted")
     assert not (work / "bad-digest").exists()
     obj.write_bytes(valid)
     calls = set(trace.read_text(encoding="utf-8").splitlines())
