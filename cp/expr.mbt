@@ -16,7 +16,7 @@ struct EvalValue {
 
 ///|
 fn EvalValue::of_int(v : Int64) -> EvalValue {
-  { bits: v.to_uint64(), unsigned: false, }
+  { bits: v.reinterpret_as_uint64(), unsigned: false, }
 }
 
 ///|
@@ -27,7 +27,7 @@ fn EvalValue::truthy(self : EvalValue) -> Bool {
 ///|
 /// | Build the value from an `@lex.IntLiteral`'s kind.
 fn EvalValue::of_literal(lit : @lex.IntLiteral) -> EvalValue {
-  { bits: lit.value.to_uint64(), unsigned: !lit.ty.is_signed(), }
+  { bits: lit.value.reinterpret_as_uint64(), unsigned: !lit.ty.is_signed(), }
 }
 
 ///|
@@ -36,8 +36,9 @@ struct EvalCtx {
   tokens : Array[@lex.Token]
   mut pos : Int32
   macros : Map[String, Macro]
-  platform : Platform
-  /// Resolves an identifier that is not a target macro. The declaration
+  mut evaluating : Bool
+  identifiers_are_zero : Bool
+  /// Resolves an identifier after preprocessing. The declaration
   /// parser uses it for enumerators and `sizeof` results.
   lookup : (String) -> Int64?
   mut bad : Bool
@@ -52,19 +53,22 @@ pub fn evaluate(
   macros : Map[String, Macro],
   platform : Platform,
 ) -> Int64? {
+  let tokens = tokens.filter(t => t.kind != @lex.Newline)
   let ctx : EvalCtx = {
     tokens,
     pos: 0,
     macros,
-    platform,
+    evaluating: true,
+    identifiers_are_zero: true,
     lookup: fn(_) { None },
     bad: false,
   }
+  let _ = platform
   let v = ctx.parse_conditional()
-  if ctx.bad {
+  if ctx.bad || !ctx.at_end() {
     return None
   }
-  Some(v.bits.to_int64())
+  Some(v.bits.reinterpret_as_int64())
 }
 
 ///|
@@ -76,12 +80,22 @@ pub fn evaluate_with(
   platform : Platform,
   lookup : (String) -> Int64?,
 ) -> Int64? {
-  let ctx : EvalCtx = { tokens, pos: 0, macros, platform, lookup, bad: false, }
+  let tokens = tokens.filter(t => t.kind != @lex.Newline)
+  let ctx : EvalCtx = {
+    tokens,
+    pos: 0,
+    macros,
+    evaluating: true,
+    identifiers_are_zero: false,
+    lookup,
+    bad: false,
+  }
+  let _ = platform
   let v = ctx.parse_conditional()
-  if ctx.bad {
+  if ctx.bad || !ctx.at_end() {
     return None
   }
-  Some(v.bits.to_int64())
+  Some(v.bits.reinterpret_as_int64())
 }
 
 ///|
@@ -95,7 +109,11 @@ fn EvalCtx::peek(self : EvalCtx) -> String {
 
 ///|
 fn EvalCtx::at_end(self : EvalCtx) -> Bool {
-  self.pos >= self.tokens.length()
+  self.pos >= self.tokens.length() ||
+  (
+    self.pos == self.tokens.length() - 1 &&
+    self.tokens[self.pos].kind == @lex.Eof
+  )
 }
 
 ///|
@@ -119,15 +137,23 @@ fn EvalCtx::accept(self : EvalCtx, text : String) -> Bool {
 fn EvalCtx::parse_conditional(self : EvalCtx) -> EvalValue {
   let cond = self.parse_binary(0)
   if self.accept("?") {
+    let evaluating = self.evaluating
+    self.evaluating = evaluating && cond.truthy()
     let a = self.parse_conditional()
     if !self.accept(":") {
       self.bad = true
     }
+    self.evaluating = evaluating && !cond.truthy()
     let b = self.parse_conditional()
-    if cond.truthy() {
-      a
-    } else {
-      b
+    self.evaluating = evaluating
+    // Both operands determine the type, including an unevaluated operand.
+    {
+      bits: if cond.truthy() {
+        a.bits
+      } else {
+        b.bits
+      },
+      unsigned: a.unsigned || b.unsigned,
     }
   } else {
     cond
@@ -162,10 +188,37 @@ fn EvalCtx::parse_binary(self : EvalCtx, min_prec : Int32) -> EvalValue {
       break
     }
     self.pos = self.pos + 1
-    // `&&` and `||` short-circuit, but C still requires the right operand
-    // to be syntactically valid, so it is parsed unconditionally.
+    // Parse skipped operands for syntax and type without evaluating them.
+    let evaluating = self.evaluating
+    self.evaluating = evaluating &&
+      !(op == "&&" && !lhs.truthy()) &&
+      !(op == "||" && lhs.truthy())
     let rhs = self.parse_binary(prec + 1)
-    lhs = apply_binary(op, lhs, rhs)
+    self.evaluating = evaluating
+    let invalid_division = (op == "/" || op == "%") &&
+      (
+        rhs.bits == 0UL ||
+        (
+          !lhs.unsigned &&
+          !rhs.unsigned &&
+          lhs.bits == 9223372036854775808UL &&
+          rhs.bits == 18446744073709551615UL
+        )
+      )
+    let invalid_shift = (op == "<<" || op == ">>") && rhs.bits >= 64UL
+    if evaluating && (invalid_division || invalid_shift) {
+      self.bad = true
+    }
+    lhs = if !evaluating || invalid_division || invalid_shift {
+      let unsigned = match op {
+        "&&" | "||" | "==" | "!=" | "<" | ">" | "<=" | ">=" => false
+        "<<" | ">>" => lhs.unsigned
+        _ => lhs.unsigned || rhs.unsigned
+      }
+      { bits: 0UL, unsigned, }
+    } else {
+      apply_binary(op, lhs, rhs)
+    }
   }
   lhs
 }
@@ -204,6 +257,10 @@ fn EvalCtx::parse_unary(self : EvalCtx) -> EvalValue {
     "defined" => {
       self.pos = self.pos + 1
       let parenthesized = self.accept("(")
+      if self.at_end() || self.tokens[self.pos].kind != @lex.Ident {
+        self.bad = true
+        return EvalValue::of_int(0L)
+      }
       let name = self.next()
       if parenthesized {
         if !self.accept(")") {
@@ -245,35 +302,15 @@ fn EvalCtx::parse_primary(self : EvalCtx) -> EvalValue {
         }
       }
     Ident =>
-      // An identifier that survived macro expansion is either a leftover
-      // macro name (0) or one of the target-description macros.
-      match t {
-        "__LP64__" | "__MOONBIND_LP64" =>
-          EvalValue::of_int(
-            if !self.platform.windows && self.platform.pointer_bits == 64 {
-              1L
-            } else {
-              0L
-            },
-          )
-        "_WIN64" | "_WIN32" | "__WIN64__" =>
-          EvalValue::of_int(if self.platform.windows { 1L } else { 0L })
-        "__aarch64__" | "__x86_64__" =>
-          EvalValue::of_int(
-            if self.platform.pointer_bits == 64 {
-              1L
-            } else {
-              0L
-            },
-          )
-        "__wasm32__" | "__wasm__" =>
-          EvalValue::of_int(if self.platform.wasm { 1L } else { 0L })
-        "__MOONBIND__" => EvalValue::of_int(1L)
-        _ =>
-          match (self.lookup)(t) {
-            Some(v) => EvalValue::of_int(v)
-            None => EvalValue::of_int(0L)
+      match (self.lookup)(t) {
+        Some(v) => EvalValue::of_int(v)
+        None => {
+          // Only preprocessing expressions replace unknown names with zero.
+          if !self.identifiers_are_zero {
+            self.bad = true
           }
+          EvalValue::of_int(0L)
+        }
       }
     _ => {
       self.bad = true
@@ -301,39 +338,38 @@ fn apply_binary(op : String, a : EvalValue, b : EvalValue) -> EvalValue {
     "<=" => bool_val(compare(a, b) <= 0)
     ">=" => bool_val(compare(a, b) >= 0)
     "<<" => {
-      let shift = b.bits.to_int64().to_int()
-      { bits: a.bits.lsl(shift), unsigned: a.unsigned, }
+      let shift = b.bits.reinterpret_as_int64().to_int()
+      { bits: a.bits << shift, unsigned: a.unsigned, }
     }
     ">>" => {
-      let shift = b.bits.to_int64().to_int()
+      let shift = b.bits.reinterpret_as_int64().to_int()
       if a.unsigned {
-        { bits: a.bits.lsr(shift), unsigned: true, }
+        { bits: a.bits >> shift, unsigned: true, }
       } else {
-        { bits: a.bits.to_int64().asr(shift).to_uint64(), unsigned: false, }
+        {
+          bits: (a.bits.reinterpret_as_int64() >> shift).reinterpret_as_uint64(),
+          unsigned: false,
+        }
       }
     }
     "+" => { bits: a.bits + b.bits, unsigned, }
     "-" => { bits: a.bits - b.bits, unsigned, }
     "*" => { bits: a.bits * b.bits, unsigned, }
     "/" =>
-      if b.bits == 0UL {
-        { bits: 0UL, unsigned, }
-      } else if unsigned {
+      if unsigned {
         { bits: a.bits / b.bits, unsigned: true, }
       } else {
         {
-          bits: (a.bits.to_int64() / b.bits.to_int64()).to_uint64(),
+          bits: (a.bits.reinterpret_as_int64() / b.bits.reinterpret_as_int64()).reinterpret_as_uint64(),
           unsigned: false,
         }
       }
     "%" =>
-      if b.bits == 0UL {
-        { bits: 0UL, unsigned, }
-      } else if unsigned {
+      if unsigned {
         { bits: a.bits % b.bits, unsigned: true, }
       } else {
         {
-          bits: (a.bits.to_int64() % b.bits.to_int64()).to_uint64(),
+          bits: (a.bits.reinterpret_as_int64() % b.bits.reinterpret_as_int64()).reinterpret_as_uint64(),
           unsigned: false,
         }
       }
@@ -346,6 +382,6 @@ fn compare(a : EvalValue, b : EvalValue) -> Int32 {
   if a.unsigned || b.unsigned {
     a.bits.compare(b.bits)
   } else {
-    a.bits.to_int64().compare(b.bits.to_int64())
+    a.bits.reinterpret_as_int64().compare(b.bits.reinterpret_as_int64())
   }
 }

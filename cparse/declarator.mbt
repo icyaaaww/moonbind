@@ -181,9 +181,19 @@ fn Cursor::array_length(self : Cursor, toks : Array[@lex.Token]) -> Int64 {
   let kept = toks.filter(t => {
     t.text != "static" && t.text != "restrict" && t.text != "__restrict"
   })
+  if kept.is_empty() {
+    return 0L
+  }
   match self.eval_const(kept) {
-    Some(v) => if v < 0L { 0L } else { v }
-    None => 0L
+    Some(v) if v >= 0L => v
+    _ => {
+      self.diagnose(
+        kept[0],
+        "invalid_array_bound",
+        "array bound requires a supported nonnegative integer constant expression",
+      )
+      0L
+    }
   }
 }
 
@@ -266,8 +276,7 @@ fn decay_params(params : Array[@ast.CParam]) -> Array[@ast.CParam] {
 
 ///|
 /// | Evaluate a constant expression. Enumerators and earlier `#define`s are
-/// visible through `env`; anything else evaluates to zero the way an unknown
-/// identifier does in `#if`.
+/// visible through `env`; unresolved identifiers are rejected in declarations.
 fn Cursor::eval_const(self : Cursor, toks : Array[@lex.Token]) -> Int64? {
   if toks.length() == 0 {
     return None

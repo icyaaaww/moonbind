@@ -78,11 +78,11 @@ struct CondFrame {
 fn parse_define(spec : String) -> (String, String)? {
   match spec.find("=") {
     Some(idx) => {
-      let name = spec.substring(start=0, end=idx)
+      let name = spec[:idx].to_owned()
       if name == "" {
         return None
       }
-      Some((name, spec.substring(start=idx + 1)))
+      Some((name, spec[idx + 1:].to_owned()))
     }
     None => if spec == "" { None } else { Some((spec, "1")) }
   }
@@ -168,6 +168,8 @@ fn Preprocessor::install_predefined(self : Preprocessor) -> Unit {
     defs.push(("_WIN32", "1"))
     if p.pointer_bits == 64 {
       defs.push(("_WIN64", "1"))
+      defs.push(("_M_X64", "100"))
+      defs.push(("_M_AMD64", "100"))
       // MSVC x64 uses the default x64 convention for these spellings.
       // Do not erase them on other targets or erase __vectorcall.
       defs.push(("__cdecl", ""))
@@ -177,8 +179,17 @@ fn Preprocessor::install_predefined(self : Preprocessor) -> Unit {
   if p.pointer_bits == 64 && !p.windows {
     defs.push(("__LP64__", "1"))
     defs.push(("_LP64", "1"))
-    defs.push(("__x86_64__", "1"))
-    defs.push(("__amd64__", "1"))
+    // An explicit architecture definition distinguishes AArch64 from LP64
+    // x86 without changing the public Platform/PreprocessOptions structs.
+    if !self.options.defines.any(spec => {
+        match parse_define(spec) {
+          Some((name, _)) => name == "__aarch64__"
+          None => false
+        }
+      }) {
+      defs.push(("__x86_64__", "1"))
+      defs.push(("__amd64__", "1"))
+    }
   }
   if p.wasm {
     defs.push(("__wasm__", "1"))
@@ -449,7 +460,7 @@ fn Preprocessor::eval_condition(
   args : Array[@lex.Token],
   src : @source.SourceText,
 ) -> Bool raise PreprocessError {
-  let replaced = replace_defined(args, self.macros)
+  let replaced = replace_defined(args, self.macros).unwrap_or([])
   let expanded = self.expand_tokens(replaced, 0)
   match evaluate(expanded, self.macros, self.options.platform) {
     Some(v) => v != 0L
@@ -467,7 +478,7 @@ fn Preprocessor::eval_condition(
 fn replace_defined(
   tokens : Array[@lex.Token],
   macros : Map[String, Macro],
-) -> Array[@lex.Token] {
+) -> Array[@lex.Token]? {
   let out : Array[@lex.Token] = []
   let mut i = 0
   while i < tokens.length() {
@@ -479,12 +490,15 @@ fn replace_defined(
         paren = true
         j = j + 1
       }
-      let mut name = ""
-      if j < tokens.length() {
-        name = tokens[j].text
-        j = j + 1
+      if j >= tokens.length() || tokens[j].kind != @lex.Ident {
+        return None
       }
-      if paren && j < tokens.length() && tokens[j].text == ")" {
+      let name = tokens[j].text
+      j = j + 1
+      if paren {
+        if j >= tokens.length() || tokens[j].text != ")" {
+          return None
+        }
         j = j + 1
       }
       let v = if macros.contains(name) { "1" } else { "0" }
@@ -495,7 +509,7 @@ fn replace_defined(
     out.push(t)
     i = i + 1
   }
-  out
+  Some(out)
 }
 
 ///|

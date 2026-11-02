@@ -1,4 +1,6 @@
-> Registry version **0.10.0** corresponds to GitHub/CLI **1.0.0**. Mooncakes currently rejects nonzero major versions; see `release-version.json`.
+> **1.1 development (unreleased):** fixes target architecture macros, strict constant expressions and Windows environment decoding while preserving the 1.0 public API. CLI version is 1.1.0; proposed registry version 0.11.0 has not been published. See [the maintenance guide](docs/v1.1.md). The latest published stable package remains 0.10.0.
+
+> Registry version **0.10.0** corresponds to GitHub/CLI **1.0.0**. Mooncakes rejected nonzero major versions during the 2026-10-23 release; see `release-version.json`.
 
 > **1.0.0** adds versioned configuration, backed-up upgrade application, copied installations, C helper namespaces, and a SQLite/Zstandard/cJSON snapshot application. See [the 1.0 guide](docs/v1.0.md) and [public API baseline](compat/1.0). Independent user trials remain pending.
 

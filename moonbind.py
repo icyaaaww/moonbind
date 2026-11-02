@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import moonbind_workflows as workflows
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "1.0.0"
+VERSION = json.loads((ROOT / "release-version.json").read_text(encoding="utf-8"))["product_version"]
 IGNORE = {"_build", ".git", ".mooncakes", "__pycache__", "reports"}
 
 
@@ -170,10 +170,17 @@ def windows_compiler():
     vcvars = Path(location) / "VC/Auxiliary/Build/vcvars64.bat"
     if not vcvars.exists() or any(c in str(vcvars) for c in '\r\n"&|<>^%'):
         raise ValueError("Invalid MSVC setup path")
-    proc = subprocess.run('cmd.exe /d /s /c ""' + str(vcvars) + '" >nul && set"', text=True, capture_output=True, timeout=60)
-    setup = {"exit_code": proc.returncode, "stdout": proc.stdout, "stderr": proc.stderr}
-    require(setup)
-    for line in setup["stdout"].splitlines():
+    # /u makes cmd's internal `set` write UTF-16LE independently of the
+    # active console code page and Python's UTF-8 mode. Decode bytes here so
+    # malformed output cannot fail silently in a subprocess reader thread.
+    proc = subprocess.run('cmd.exe /d /u /s /c ""' + str(vcvars) + '" >nul && set"', capture_output=True, timeout=60)
+    if proc.returncode:
+        raise RuntimeError("MSVC environment setup failed; run vcvars64.bat in a developer prompt and retry")
+    try:
+        output = proc.stdout.decode("utf-16-le")
+    except UnicodeDecodeError:
+        raise ValueError("Cannot decode MSVC environment output as UTF-16LE; run from a Visual Studio developer prompt") from None
+    for line in output.splitlines():
         if "=" in line and not line.startswith("="):
             key, value = line.split("=", 1)
             environment[key.upper()] = value
@@ -530,7 +537,7 @@ def init_project(destination, template, target, recipe=None):
         write_json(staging / "moonbind.project.json", {"schema_version": 1, "binding_config": "moonbind.json", "template": template,
                    "runtime_checks": [{"name": template + " smoke", "package": "main", "functions": functions, "verifies": verifies}]})
         (staging / ".gitignore").write_text("_build/\n.mooncakes/\nreports/\n", encoding="utf-8")
-        (staging / "README.md").write_text("# MoonBind " + template + " example\n\nUse the MoonBind 0.9 source release driver:\n\n```sh\npython /path/to/moonbind/moonbind.py doctor .\npython /path/to/moonbind/moonbind.py validate .\npython /path/to/moonbind/moonbind.py report-check .\n```\n\nValidation executes this project's native code. Review contracts in moonbind.json and assertions in main/main.mbt before using your own library. reports/validation.html is an unsigned snapshot, not a general safety proof. Native templates target LP64 Linux/macOS and MSVC Windows x64 LLP64; zlib is validated only on Linux/macOS with development headers/library.\n", encoding="utf-8")
+        (staging / "README.md").write_text("# MoonBind " + template + " example\n\nUse the MoonBind " + VERSION + " source release driver:\n\n```sh\npython /path/to/moonbind/moonbind.py doctor .\npython /path/to/moonbind/moonbind.py validate .\npython /path/to/moonbind/moonbind.py report-check .\n```\n\nValidation executes this project's native code. Review contracts in moonbind.json and assertions in main/main.mbt before using your own library. reports/validation.html is an unsigned snapshot, not a general safety proof. Native templates target LP64 Linux/macOS and MSVC Windows x64 LLP64; zlib is validated only on Linux/macOS with development headers/library.\n", encoding="utf-8")
         for attempt in range(6):
             if destination.exists():
                 raise ValueError("Destination appeared during initialization; refusing overwrite")

@@ -1,5 +1,7 @@
 # MoonBind
 
+> **1.1 开发版本（尚未发布）**：修正 AArch64 目标宏、严格常量表达式诊断和 Windows MSVC 环境探测，保留 1.0 公共接口。工作区 CLI 为 1.1.0；Mooncakes 0.11.0 为待验证的发布编号。已发布稳定版仍为 GitHub 1.0.0 / Mooncakes 0.10.0。参见 [1.1 维护与验收](docs/v1.1.md)。
+
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
 [![CI](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml/badge.svg)](https://github.com/icyaaaww/moonbind/actions/workflows/ci.yml)
@@ -12,9 +14,9 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-当前版本为 **1.0.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+已发布稳定版本为 **1.0.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
 
-GitHub 正式版为 **v1.0.0**，Mooncakes 对应包为 **`icyaaaww/moonbind@0.10.0`**。Mooncakes 当前服务端只接受 `0.x.y`；这两个版本对应同一次交付，CLI 显示 `1.0.0`。
+GitHub 正式版为 **v1.0.0**，Mooncakes 对应包为 **`icyaaaww/moonbind@0.10.0`**。2026-10-23 发布时，Mooncakes 服务端只接受 `0.x.y`；这两个版本对应同一次交付，对应稳定版 CLI 显示 `1.0.0`。
 
 ## 1.0：稳定交付与三库实用应用
 
@@ -54,7 +56,7 @@ moon run file --target native -- decompress output.zst restored.bin
 
 打开 `reports/validation.html` 查看执行证据。需要 Python 3.10+、MoonBit 与 C11 编译环境；Windows 需要 MSVC Build Tools 与 Windows SDK。文件示例将输入整体读入内存，适合小文件；输出分配上限 64 MiB。C 库仍须遵守容量和生命周期契约，包装器不构成完整内存安全保证。
 
-详见 [0.9 使用指南与支持边界](docs/v0.9.md)、[0.8 回调与升级](docs/v0.8.md)、[更新记录](CHANGELOG.md)。[独立开发者试用](docs/user-trial-v09.md)尚待执行，自动化测试不计作真实用户反馈。
+详见 [0.9 使用指南与支持边界](docs/v0.9.md)、[0.8 回调与升级](docs/v0.8.md)、[更新记录](CHANGELOG.md)。[独立开发者试用](docs/user-trial-v11.md)尚待执行，自动化测试不计作真实用户反馈。
 
 ## 能解决什么问题
 
@@ -112,7 +114,7 @@ _build/generated-greet/
 在已有 MoonBit 模块中安装：
 
 ```sh
-moon add icyaaaww/moonbind@0.9.0
+moon add icyaaaww/moonbind@0.10.0
 ```
 
 按需在调用方的 `moon.pkg` 中导入子包；模块根包不提供生成器 API：

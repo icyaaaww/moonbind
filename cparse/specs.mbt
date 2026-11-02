@@ -130,8 +130,15 @@ fn Cursor::parse_record_body(
         let toks = self.tokens[start:self.pos].to_owned()
         bit_width = Some(
           match self.eval_const(toks) {
-            Some(v) => if v < 0L { 0 } else { v.to_int() }
-            None => 0
+            Some(v) if v >= 0L && v <= 2147483647L => v.to_int()
+            _ => {
+              self.diagnose(
+                self.tokens[start],
+                "invalid_bit_width",
+                "bit-field width requires a supported nonnegative integer constant expression",
+              )
+              0
+            }
           },
         )
       }
@@ -231,7 +238,12 @@ fn Cursor::parse_enum_body(
       let toks = self.tokens[start:self.pos].to_owned()
       match self.eval_const(toks) {
         Some(v) => next = v
-        None => ()
+        None =>
+          self.diagnose(
+            self.tokens[start],
+            "invalid_enum_constant",
+            "enumerator requires a supported integer constant expression",
+          )
       }
     }
     items.push(@ast.CEnumItem::{ name, value: next, })

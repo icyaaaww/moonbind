@@ -7,9 +7,9 @@
 //! never guessed at.
 
 ///|
-/// | The version the binary reports. Kept in step with `moon.mod` by hand, and
-/// | by a test that reads the manifest.
-pub let version : String = "1.0.0"
+/// | The version the binary reports. Kept in step with `release-version.json`;
+/// | the 1.1 acceptance script checks both entry points and package metadata.
+pub let version : String = "1.1.0"
 
 ///|
 /// | A fully-resolved invocation.
@@ -215,13 +215,13 @@ pub fn parse_args(argv : Array[String]) -> Args {
                 return Bad(arg + " requires name=value")
               }
               if arg == "--own" {
-                ownership[parts[0].to_string()] = parts[1].to_string()
+                ownership[parts[0].to_owned()] = parts[1].to_owned()
               } else if arg == "--output-buffer" {
-                output_buffers[parts[0].to_string()] = parts[1].to_string()
+                output_buffers[parts[0].to_owned()] = parts[1].to_owned()
               } else if arg == "--managed-output" {
-                managed_outputs[parts[0].to_string()] = parts[1].to_string()
+                managed_outputs[parts[0].to_owned()] = parts[1].to_owned()
               } else {
-                buffers[parts[0].to_string()] = parts[1].to_string()
+                buffers[parts[0].to_owned()] = parts[1].to_owned()
               }
             }
             "--status" => {
@@ -231,7 +231,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                 parts[1].is_empty() {
                 return Bad(arg + " requires name=value")
               }
-              status_codes[parts[0].to_string()] = parts[1].to_string()
+              status_codes[parts[0].to_owned()] = parts[1].to_owned()
             }
             "--out-param" => {
               let parts = value.split("=").to_array()
@@ -240,7 +240,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                 parts[1].is_empty() {
                 return Bad(arg + " requires name=value")
               }
-              out_params[parts[0].to_string()] = parts[1].to_string()
+              out_params[parts[0].to_owned()] = parts[1].to_owned()
             }
             "--null-param" => {
               let parts = value.split("=").to_array()
@@ -249,7 +249,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                 parts[1].is_empty() {
                 return Bad(arg + " requires name=value")
               }
-              null_params[parts[0].to_string()] = parts[1].to_string()
+              null_params[parts[0].to_owned()] = parts[1].to_owned()
             }
             "--callback" => {
               let parts = value.split("=").to_array()
@@ -258,7 +258,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                 parts[1].is_empty() {
                 return Bad(arg + " requires name=value")
               }
-              callbacks[parts[0].to_string()] = parts[1].to_string()
+              callbacks[parts[0].to_owned()] = parts[1].to_owned()
             }
             "--rename" => {
               let parts = value.split("=").to_array()
@@ -267,7 +267,7 @@ pub fn parse_args(argv : Array[String]) -> Args {
                 parts[1].is_empty() {
                 return Bad("--rename requires c_name=moonbit_name")
               }
-              rename_functions[parts[0].to_string()] = parts[1].to_string()
+              rename_functions[parts[0].to_owned()] = parts[1].to_owned()
             }
             "--config" => config = Some(value)
             "--compare" => compare = Some(value)
