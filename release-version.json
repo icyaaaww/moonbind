@@ -2,7 +2,9 @@
   "product_version": "1.1.0",
   "github_tag": "v1.1.0",
   "mooncakes_version": "0.11.0",
-  "reason": "Proposed 1.1 package version preserves the historical product/registry mapping. Confirm registry rules and publication with a dry run before release.",
+  "reason": "GitHub/CLI release 1.1.0. Mooncakes 0.11.0 is reserved for this release but is not published: registry dry-run requires Mooncakes credentials. The latest verified published registry package remains 0.10.0.",
   "compatibility_baseline": "compat/1.0",
-  "status": "unreleased"
+  "status": "released",
+  "release_date": "2026-11-03",
+  "registry_status": "pending_authentication"
 }

@@ -1,4 +1,4 @@
-# 1.1.0 — Unreleased
+# 1.1.0 — 2026-11-03
 
 - Correct AArch64 versus x86-64 predefined architecture macros without adding fields to the public 1.0 configuration structs. Direct library callers select AArch64 with `LoadOptions.defines: ["__aarch64__=1"]`.
 - Reject trailing expression tokens, evaluated division/modulo by zero and invalid shifts. Preserve short-circuit evaluation and conditional-operator signedness, including unevaluated operands.
@@ -7,7 +7,7 @@
 - Decode MSVC environment setup as explicit UTF-16LE, independently of Python UTF-8 mode or the console code page, with actionable failures that do not dump environment variables.
 - Compare target branches and expression results with clang; exercise native doctor/validate with Python UTF-8 mode disabled in the three-platform acceptance matrix.
 - Derive the Python driver and generated README version from release metadata; check the MoonBit CLI and package version mapping during acceptance.
-- Proposed Mooncakes version: `0.11.0`; publication and registry dry-run remain pending. Independent developer trials remain pending.
+- GitHub/CLI release: `1.1.0`. Mooncakes `0.11.0` is pending authentication, registry dry-run and publication; the latest verified published package remains `0.10.0` (product 1.0). Independent developer trials remain pending.
 
 # 1.0.0 — 2026-10-23
 
