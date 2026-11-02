@@ -1,4 +1,6 @@
-> Registry version **0.10.0** corresponds to GitHub/CLI **1.0.0**. Mooncakes currently rejects nonzero major versions; see `release-version.json`.
+> **GitHub release 1.1.0:** fixes target architecture macros, strict constant expressions and Windows environment decoding while preserving the 1.0 public API. Download [the 1.1 source release](https://github.com/icyaaaww/moonbind/releases/tag/v1.1.0). Mooncakes 0.11.0 is pending authentication and publication; the latest verified published package is 0.10.0 and does not include these fixes. See [the maintenance guide](docs/v1.1.md).
+
+> Registry version **0.10.0** corresponds to GitHub/CLI **1.0.0**. Mooncakes rejected nonzero major versions during the 2026-10-23 release; see `release-version.json`.
 
 > **1.0.0** adds versioned configuration, backed-up upgrade application, copied installations, C helper namespaces, and a SQLite/Zstandard/cJSON snapshot application. See [the 1.0 guide](docs/v1.0.md) and [public API baseline](compat/1.0). Independent user trials remain pending.
 
@@ -273,7 +275,7 @@ complete binary compatibility verdicts.
 
 ### Install the Mooncakes library
 
-The stable module version is `icyaaaww/moonbind@0.10.0`:
+The latest verified published module is `icyaaaww/moonbind@0.10.0` (product 1.0, without the 1.1 fixes). Use the GitHub source release for 1.1 until registry publication is complete:
 
 ```sh
 moon add --upgrade icyaaaww/moonbind@0.10.0

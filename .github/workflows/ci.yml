@@ -174,7 +174,7 @@ jobs:
           if-no-files-found: warn
 
   release-v1:
-    name: 1.0 acceptance / ${{ matrix.os }}
+    name: 1.1 acceptance / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -204,16 +204,20 @@ jobs:
         run: python scripts/verify-v1.py
       - name: Bounded parser corpus
         run: python scripts/verify-parser-corpus.py
-      - name: Preserve 1.0 evidence
+      - name: Target semantics and native startup without Python UTF-8 mode
+        run: python -X utf8=0 scripts/verify-v11.py --native
+      - name: Preserve 1.1 evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: moonbind-1.0-${{ matrix.os }}
+          name: moonbind-1.1-${{ matrix.os }}
           path: |
             _build/v1-*/summary.json
             _build/v1-*/native-calls.txt
             _build/v1-*/**/reports/*.json
             _build/parser-corpus-*/summary.json
+            _build/v11-*/summary.json
+            _build/v11-*/**/reports/*.json
           if-no-files-found: warn
 
   latest-compatibility:

@@ -15,7 +15,7 @@ pub fn run(options : Options) -> String raise RunError {
   let load_options = {
     ..load,
     include_paths: options.include_paths,
-    defines: options.defines,
+    defines: target_defines(options.target, options.defines),
     platform: platform_for(options.target),
   }
   let parsed = @cparse.load_header(options.header, load_options) catch {
@@ -234,9 +234,24 @@ fn make_dirs(dir : String) -> Unit raise @fs.IOError {
 }
 
 ///|
-/// | The preprocessor's data model for a layout target. The two agree on the
-/// | things a header branches on — pointer width, `long`, `size_t` — which is
-/// | why the target is chosen once and used for both.
+// Architecture travels as a predefined macro, keeping the public Platform
+// data-model struct compatible with 1.0 callers constructing it directly.
+fn target_defines(
+  target : @layout.Target,
+  defines : Array[String],
+) -> Array[String] {
+  let result : Array[String] = []
+  if target.abi == @layout.Aapcs64 {
+    result.push("__aarch64__=1")
+  }
+  result.append(defines)
+  result
+}
+
+///|
+/// | The preprocessor's integer data model for a layout target. Architecture
+/// | macros are supplied separately through LoadOptions.defines; library
+/// | callers selecting AArch64 should include "__aarch64__=1" there.
 pub fn platform_for(target : @layout.Target) -> @cp.Platform {
   match target.abi {
     @layout.SysV64 => @cp.Platform::lp64()
