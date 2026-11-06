@@ -18,11 +18,11 @@ pub fn package_manifest(
       sources.push(path)
     }
   }
-  let quoted = sources.map(s => s.to_json().stringify())
+  let quoted = sources.map(s => Json(s).stringify())
   "supported_targets = \"native\"\n\noptions(\n  \"native-stub\": [ " +
   quoted.join(", ") +
   " ],\n  \"link\": { \"native\": { \"stub-cc-flags\": " +
-  stub_flags.to_json().stringify() +
+  Json(stub_flags).stringify() +
   " } },\n)\n"
 }
 

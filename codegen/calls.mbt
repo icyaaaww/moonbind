@@ -469,7 +469,7 @@ pub fn call_adapters(
   line(
     out, "#include <stdint.h>\n#include <stdlib.h>\n#include <stdio.h>\n#include <moonbit.h>",
   )
-  line(out, "#include " + header.to_json().stringify())
+  line(out, "#include " + Json(header).stringify())
   if trace {
     line(
       out, "static void moonbind_trace(const char *name) { const char *path = getenv(\"MOONBIND_TRACE\"); if (!path) return; FILE *f = fopen(path, \"a\"); if (!f) return; fprintf(f, \"%s\\n\", name); fclose(f); }",
@@ -481,7 +481,18 @@ pub fn call_adapters(
       let args : Array[String] = []
       for i, p in f.params {
         let n = "a" + i.to_string()
-        ps.push(c_decl(m, p.ty, n))
+        let nested_pointer = match strip_typedefs(m, p.ty) {
+          @ast.Pointer(inner) =>
+            match strip_typedefs(m, inner) {
+              @ast.Pointer(_) => true
+              _ => false
+            }
+          _ => false
+        }
+        // Qualifiers are erased in the AST. At this FFI forwarding boundary,
+        // an object pointer converts from void* to the header's exact type;
+        // spelling char** here would conflict with a const char** parameter.
+        ps.push(if nested_pointer { "void *" + n } else { c_decl(m, p.ty, n) })
         args.push(n)
       }
       line(
