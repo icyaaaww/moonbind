@@ -8,7 +8,7 @@ fn diagnostics_json(m : @ast.CModule) -> Json {
     "token": d.token,
     "message": d.message,
   })
-  items.to_json()
+  Json(items)
 }
 
 ///|
@@ -128,8 +128,9 @@ fn decorate_comparison(
         "old": diagnostics_json(old),
         "new": diagnostics_json(new),
       }
-      fields["analysis_complete"] = (old.diagnostics.is_empty() &&
-      new.diagnostics.is_empty()).to_json()
+      fields["analysis_complete"] = Json(
+        old.diagnostics.is_empty() && new.diagnostics.is_empty(),
+      )
       let partial = Json::object(fields)
       fields["policy"] = {
         "rule": options.fail_on,

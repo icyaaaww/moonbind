@@ -22,7 +22,7 @@ fn type_text(ty : @ast.CType) -> String {
 ///|
 fn[T : ToJson] optional_json(value : T?) -> Json {
   match value {
-    Some(value) => value.to_json()
+    Some(value) => Json(value)
     None => Json::null()
   }
 }
@@ -272,7 +272,9 @@ fn api_entries(
     }
   }
   for name in m.sorted_typedef_names() {
-    result["typedef:" + name] = type_text(m.typedefs.get(name).unwrap().ty).to_json()
+    result["typedef:" + name] = Json(
+      type_text(m.typedefs.get(name).unwrap().ty),
+    )
   }
   for tag in m.sorted_enum_tags() {
     let e = m.enums.get(tag).unwrap()
@@ -297,7 +299,7 @@ fn abi_identity(entry : Json) -> String {
     Object(fields) => {
       let copy = fields.copy()
       copy.remove("parameters")
-      copy.to_json().stringify()
+      Json(copy).stringify()
     }
     _ => entry.stringify()
   }
@@ -418,9 +420,7 @@ pub fn review_text(report : Json) -> String {
       for change in changes {
         out.write_string(change.stringify(indent=2) + "\n")
       }
-      out.write_string(
-        "Affected functions: " + names.to_json().stringify() + "\n",
-      )
+      out.write_string("Affected functions: " + Json(names).stringify() + "\n")
       out.write_string(
         "Next: regenerate, review call sites, compile/link/run against the new library.\n",
       )

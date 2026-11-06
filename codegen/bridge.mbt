@@ -308,7 +308,7 @@ pub fn generate_bridge(
   let c = StringBuilder()
   c.write_string(
     "/* Generated MoonBind adapter. Compile against the same headers/macros. */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include " +
-    header.to_json().stringify() +
+    Json(header).stringify() +
     "\n",
   )
   c.write_string(
