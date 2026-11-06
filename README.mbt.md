@@ -154,7 +154,12 @@ Three complete scenarios live in `examples/`, each one runnable with
 `examples/sqlite3` is `testdata/sqlite/sqlite3.h` (SQLite is in the public
 domain) run through `moonbind` and checked in. `examples/sqlite3-demo` is a
 program written against it that creates a table, inserts rows through a
-prepared statement, and reads them back.
+prepared statement, and asserts every returned name/value plus the final
+`SQLITE_DONE` and successful close. Errors escape `main raise` with a nonzero
+exit status. The handwritten `examples/sqlite3-demo/adapter.c` supplies
+`SQLITE_TRANSIENT` so SQLite copies borrowed MoonBit bytes before bind returns,
+and passes actual NULL optional outputs. These library lifetime rules are
+explicit policies, not inferred from the header.
 
 ```console
 $ moon run examples/sqlite3-demo --target native
@@ -163,11 +168,14 @@ craters by size:
   Copernicus — 3 craters
   Kepler — 2 craters
 3 rows
+PASS SQLite: asserted rows, SQLITE_DONE and clean close
 ```
 
 Nothing in `main.mbt` mentions a pointer size, an offset or a C type. The
 `sqlite3 *` handle, the `sqlite3_stmt *` resets and the `SQLITE_*` status codes
-all came out of the header.
+all came out of the header. Run `python scripts/verify-sqlite-demo.py` to
+exercise the documented package and failure exits, including a deterministic
+input-overwrite test that must fail when `SQLITE_STATIC` is restored.
 
 ### 2. A header small enough to read
 

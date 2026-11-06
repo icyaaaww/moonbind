@@ -6,7 +6,7 @@ import {
 supported_targets = "native"
 
 options(
-  "native-stub": [ "sqlite3.c" ],
+  "native-stub": [ "sqlite3.c", "adapter.c" ],
 )
 
 pkgtype(kind: "executable")

@@ -180,7 +180,15 @@ moon run examples/greet-demo --target native
 moon run examples/sqlite3-demo --target native
 ```
 
-SQLite 示例创建表、使用预处理语句写入记录并查询输出；greet 示例展示句柄的创建和关闭、字符串传入与返回，以及空指针处理。
+SQLite 示例逐行断言三条记录的名称和数值，确认查询以 `SQLITE_DONE` 结束，并在语句释放、数据库关闭后才报告成功；所有运行错误均以非零状态退出。`adapter.c` 是手写的库约定适配器，用 `SQLITE_TRANSIENT` 让 SQLite 在调用返回前复制临时 `Bytes`，并为可选输出参数传入真正的 NULL。这些生命周期约定不是头文件生成器自动推断的。greet 示例展示句柄的创建和关闭、字符串传入与返回，以及空指针处理。
+
+复查 SQLite 生命周期和失败退出路径：
+
+```sh
+python scripts/verify-sqlite-demo.py
+```
+
+该检查直接运行公开示例，覆盖原缓冲区改写、Unicode 名称、完整查询、错误数据与打开/准备/执行失败；并故意恢复 `SQLITE_STATIC`，确认同一测试能检出生命周期错误。
 
 开发检查：
 

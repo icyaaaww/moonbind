@@ -106,18 +106,24 @@ def sqlite(work):
     cli("testdata/sqlite/sqlite3.h", "--out", project / "bindings", "--check")
     shutil.copy2(ROOT / "examples/sqlite3-demo/main.mbt", project / "main/main.mbt")
     shutil.copy2(ROOT / "examples/sqlite3-demo/sqlite3.c", project / "main/sqlite3.c")
+    # Reuse the handwritten SQLITE_TRANSIENT/NULL adapter with regenerated bindings.
+    (project / "vendor").mkdir()
+    shutil.copy2(ROOT / "testdata/sqlite/sqlite3.h", project / "vendor/sqlite3.h")
+    adapter = (ROOT / "examples/sqlite3-demo/adapter.c").read_text(encoding="utf-8")
+    (project / "main/adapter.c").write_text(adapter.replace("../../testdata/sqlite/sqlite3.h", "../vendor/sqlite3.h"), encoding="utf-8")
     (project / "main/moon.pkg").write_text('''import {
   "integration/sqlite/bindings" @sqlite,
   "moonbitlang/core/encoding/utf8",
 }
 supported_targets = "native"
 pkgtype(kind: "executable")
-options("native-stub": ["sqlite3.c"])
+options("native-stub": ["sqlite3.c", "adapter.c"])
 ''', encoding="utf-8")
     result = run(["moon", "run", "main", "--target", "native"], cwd=project)
     for row in ["Tycho — 5 craters", "Copernicus — 3 craters", "Kepler — 2 craters", "3 rows"]:
         assert row in result.stdout, result.stdout
-    print("PASS SQLite: regenerated bindings -> native compile/link -> insert/query 3 rows")
+    assert "PASS SQLite: asserted rows, SQLITE_DONE and clean close" in result.stdout, result.stdout
+    print("PASS SQLite: regenerated bindings -> copied text -> asserted rows, SQLITE_DONE and clean close")
 
 
 def zlib_native(work):
