@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15-intel]
+        os: [ubuntu-latest, macos-26]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -104,7 +104,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15-intel, windows-latest]
+        os: [ubuntu-latest, macos-26, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
       PYTHONUTF8: "1"
@@ -141,7 +141,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15-intel, windows-latest]
+        os: [ubuntu-latest, macos-26, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
       PYTHONUTF8: "1"
@@ -178,7 +178,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-15-intel, windows-latest]
+        os: [ubuntu-latest, macos-26, windows-latest]
     runs-on: ${{ matrix.os }}
     env:
       PYTHONUTF8: "1"

@@ -3,7 +3,7 @@
 - Fix the public `examples/sqlite3-demo` text lifetime: a handwritten C adapter passes `SQLITE_TRANSIENT` and real NULL optional outputs, while generated bindings remain unchanged.
 - Let runtime errors propagate from `main raise`; finalize statements and close the database on both success and error paths. Check reset/finalize statuses, each returned row and value, final `SQLITE_DONE`, and close before reporting success.
 - Add three-platform execution of the documented example, deterministic buffer-overwrite/Unicode and restored-STATIC mutation checks, plus open/prepare/insert/query failures, missing/extra rows and wrong values. Every negative fixture must compile before its nonzero runtime exit can count as a pass.
-- Restore current CI compatibility: use the available macOS 15 runner and supported JSON constructors; forward nested object pointers through a qualifier-neutral `void *` trace parameter so SQLite const output parameters compile under stricter C compilers.
+- Restore current CI compatibility: use the current macOS ARM runner supported by the MoonBit installer and supported JSON constructors; forward nested object pointers through a qualifier-neutral `void *` trace parameter so SQLite const output parameters compile under stricter C compilers.
 - Update the regenerated SQLite consumer to use the same adapter, and distinguish handwritten lifetime policy in the documentation.
 
 # 1.1.0 — 2026-11-03
