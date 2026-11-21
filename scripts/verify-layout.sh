@@ -76,7 +76,7 @@ from_clang() {
 for pair in $targets; do
   target="${pair%%:*}"
   triple="${pair#*:}"
-  for header in testdata/layout/bitfields.h testdata/layout/packed.h; do
+  for header in testdata/layout/bitfields.h testdata/layout/packed.h testdata/layout/arrays.h; do
     want="$(from_clang "$triple" "$header" | sort)"
     got="$(moon run cmd/main -- --verify "$header" --target "$target" 2>/dev/null | sort)"
     # `moon run` narrates warnings on stderr; only the table is on stdout.

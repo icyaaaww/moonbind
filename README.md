@@ -1,6 +1,6 @@
 # MoonBind
 
-> **GitHub 正式版 1.1.0**：修正 AArch64 目标宏、严格常量表达式诊断和 Windows MSVC 环境探测，保留 1.0 公共接口。下载 [v1.1.0 源码包](https://github.com/icyaaaww/moonbind/releases/tag/v1.1.0) 使用。Mooncakes 0.11.0 尚未发布，注册表最新已验证版本仍为 0.10.0。参见 [1.1 维护与验收](docs/v1.1.md)。
+> **GitHub 正式版 1.2.0**：增强与 clang 的预处理/ABI 布局对照，扩展三平台最新 MoonBit 检查，并加入大型头文件性能基线。下载 [v1.2.0 源码包](https://github.com/icyaaaww/moonbind/releases/tag/v1.2.0)，按 [1.2 验收指南](docs/v1.2.md) 安装。Mooncakes 0.12.0 尚未发布；注册表最新已验证包仍为 0.10.0。
 
 **用 MoonBit 解析 C 头文件，生成可检查、可纳入版本管理的 MoonBit FFI 绑定。**
 
@@ -14,9 +14,9 @@
 
 MoonBind 把这条流程组织成可复用的 MoonBit 包：读取头文件、预处理、解析声明、计算目标 ABI 的内存布局，再生成绑定。对当前无法正确表达的声明，生成器跳过它们，并通过 `--report` 解释原因。
 
-GitHub / CLI 稳定版本为 **1.1.0**，支持建立独立消费项目、生成绑定和记录执行验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
+GitHub / CLI 稳定版本为 **1.2.0**。MoonBind 从 C 头文件生成 MoonBit FFI 绑定，并提供项目级配置、升级检查、布局核验及可记录的原生验证。接入真实 C 库后，仍需检查生成结果、配置链接，并验证内存所有权与运行行为。
 
-GitHub 正式版为 **v1.1.0**，CLI 显示 `1.1.0`。Mooncakes 最新已验证包 **`icyaaaww/moonbind@0.10.0`** 对应上一版产品 1.0.0，**不含 1.1 修复**。1.1 的拟用包编号为 `0.11.0`，需完成注册表认证与发布后才能安装。2026-10-23 的主版本限制记录保留在 `release-version.json` 的历史版本中。
+GitHub 正式版为 **v1.2.0**，CLI 显示 `1.2.0`。Mooncakes 0.12.0 尚待认证、dry-run 和发布；最新已验证包仍为 `0.10.0`（对应产品 1.0），不包含 1.1/1.2 更新。注册表状态见 `release-version.json`。
 
 ## 1.0：稳定交付与三库实用应用
 
@@ -239,6 +239,8 @@ source → lex → cp → cparse → layout → codegen
 ## 后续方向与反馈
 
 下一步希望扩大原生平台与真实库的回归覆盖，补充解析诊断，并探索把函数式宏转换为 MoonBit 函数。按值结构体调用需要结合 FFI 能力进一步设计，目前不属于已支持功能。
+
+1.2 发布后的 CI、独立试用与注册表分发跟进见 [发布记录与后续事项](docs/v1.2-prep.md)。
 
 欢迎通过 [Issues](https://github.com/icyaaaww/moonbind/issues) 提交最小头文件、MoonBit 版本、完整命令、目标 ABI，以及预期和实际输出。修改代码前可参考 [开发约定](AGENTS.md) 和 [英文设计说明](README.mbt.md)。
 

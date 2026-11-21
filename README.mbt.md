@@ -1,4 +1,4 @@
-> **GitHub release 1.1.0:** fixes target architecture macros, strict constant expressions and Windows environment decoding while preserving the 1.0 public API. Download [the 1.1 source release](https://github.com/icyaaaww/moonbind/releases/tag/v1.1.0). Mooncakes 0.11.0 is pending authentication and publication; the latest verified published package is 0.10.0 and does not include these fixes. See [the maintenance guide](docs/v1.1.md).
+> **GitHub release 1.2.0:** expands clang differential checks for preprocessor semantics and ABI layouts, adds latest-compiler checks across three operating systems, and records non-gating header performance baselines. Download [the 1.2 source release](https://github.com/icyaaaww/moonbind/releases/tag/v1.2.0) and see [the 1.2 guide](docs/v1.2.md). Mooncakes 0.12.0 is pending authentication and publication; the latest verified package remains 0.10.0 (product 1.0), without the 1.1/1.2 updates.
 
 > Registry version **0.10.0** corresponds to GitHub/CLI **1.0.0**. Mooncakes rejected nonzero major versions during the 2026-10-23 release; see `release-version.json`.
 

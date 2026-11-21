@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""1.1 semantic regressions and native startup with Python UTF-8 mode disabled."""
+"""C preprocessor semantics and native startup with Python UTF-8 mode disabled."""
 import argparse
 import json
 import os
@@ -71,7 +71,7 @@ def semantics(work):
     assert cli_version == "moonbind " + d.VERSION, (cli_version, d.VERSION)
     compiler = clang_path()
     if not compiler:
-        raise RuntimeError("clang is required for the 1.1 semantic comparisons")
+        raise RuntimeError("clang is required for the release semantic comparisons")
     results = []
     header = work / "targets.h"
     # The two forms must agree, including on targets where a name is absent.
@@ -115,17 +115,34 @@ int selected_wrong(void);
         assert result["exit_code"] == 1 and reference["exit_code"] != 0, (source, result, reference)
         assert "panic" not in result["stderr"].lower(), result
         results.append({"invalid_case": index, "source": source, "exit_code": result["exit_code"], "clang_exit_code": reference["exit_code"]})
-    for index, condition in enumerate([
-        "(1 ? -1 : 1U) < 0", "(0 ? 1U : -1) < 0", "0 && (1/0)",
-        "!(1 || (1/0))", "(1 ? 7 : 1/0) != 7", "(0 ? 1/0 : 9) != 9",
-    ]):
+    conditions = [
+        ("", "(1 ? -1 : 1U) < 0", False),
+        ("", "(0 ? 1U : -1) < 0", False),
+        ("", "0 && (1/0)", False),
+        ("", "!(1 || (1/0))", False),
+        ("", "(1 ? 7 : 1/0) != 7", False),
+        ("", "(0 ? 1/0 : 9) != 9", False),
+        ("", "1 + 2 * 3 == 7", True),
+        ("", "(0x40UL >> 3) == 8", True),
+        ("", "(-1 < 1U) == 0", True),
+        ("", "((5 & 3) == 1) && ((5 | 8) == 13)", True),
+        ("", "(1U << 5) == 32U", True),
+        ("", "MISSING_MACRO == 0", True),
+        ("#define BASE 0x40U\n#define SHIFT(value) ((value) >> 3)\n", "defined(BASE) && SHIFT(BASE) == 8", True),
+        ("#define VALUE 7\n#define INCREMENT(value) ((value) + 1)\n", "INCREMENT(VALUE) == 8", True),
+    ]
+    for index, (prefix, condition, expected) in enumerate(conditions):
         header = work / ("condition-" + str(index) + ".h")
-        header.write_text("#if " + condition + "\nint selected_wrong(void);\n#else\nint selected_correct(void);\n#endif\n", encoding="utf-8")
+        header.write_text(
+            prefix + "#if " + condition + "\nint selected_true(void);\n#else\nint selected_false(void);\n#endif\n",
+            encoding="utf-8",
+        )
+        expected_name = "selected_true" if expected else "selected_false"
         report = json.loads(d.require(invocation(program, header, "x86_64"))["stdout"])
         reference = d.require(d.run([compiler, "-std=c11", "-E", "-x", "c", header]))
-        assert [f["name"] for f in report["functions"]] == ["selected_correct"], report
-        assert "int selected_correct(void);" in reference["stdout"], reference
-        results.append({"condition": condition, "selected": "selected_correct"})
+        assert [f["name"] for f in report["functions"]] == [expected_name], report
+        assert f"int {expected_name}(void);" in reference["stdout"], reference
+        results.append({"condition": condition, "selected": expected_name})
     return results
 
 
@@ -156,12 +173,12 @@ def main():
     if not unittest.TextTestRunner().run(suite).wasSuccessful():
         raise SystemExit(1)
     (ROOT / "_build").mkdir(exist_ok=True)
-    work = Path(tempfile.mkdtemp(prefix="v11-", dir=ROOT / "_build"))
+    work = Path(tempfile.mkdtemp(prefix="v12-", dir=ROOT / "_build"))
     report = {"status": "passed", "semantic_cases": semantics(work), "environment_tests": suite.countTestCases()}
     if args.native:
         report["native"] = native(work)
     d.write_json(work / "summary.json", report)
-    print("PASS 1.1 semantic and environment regressions; evidence:", work)
+    print("PASS release semantic and environment regressions; evidence:", work)
 
 
 if __name__ == "__main__":

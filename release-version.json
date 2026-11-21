@@ -1,10 +1,10 @@
 {
-  "product_version": "1.1.0",
-  "github_tag": "v1.1.0",
-  "mooncakes_version": "0.11.0",
-  "reason": "GitHub/CLI release 1.1.0. Mooncakes 0.11.0 is reserved for this release but is not published: registry dry-run requires Mooncakes credentials. The latest verified published registry package remains 0.10.0.",
+  "product_version": "1.2.0",
+  "github_tag": "v1.2.0",
+  "mooncakes_version": "0.12.0",
+  "reason": "GitHub/CLI release 1.2.0. Mooncakes 0.12.0 is reserved but not published: authentication and registry verification remain pending. The latest verified published package is 0.10.0 for product 1.0; 0.11.0 for 1.1 is also unpublished.",
   "compatibility_baseline": "compat/1.0",
   "status": "released",
-  "release_date": "2026-11-03",
+  "release_date": "2026-11-21",
   "registry_status": "pending_authentication"
 }
