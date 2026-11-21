@@ -1,10 +1,17 @@
-# Unreleased — SQLite demo acceptance fix
+# 1.2.0 — 2026-11-21
 
 - Fix the public `examples/sqlite3-demo` text lifetime: a handwritten C adapter passes `SQLITE_TRANSIENT` and real NULL optional outputs, while generated bindings remain unchanged.
 - Let runtime errors propagate from `main raise`; finalize statements and close the database on both success and error paths. Check reset/finalize statuses, each returned row and value, final `SQLITE_DONE`, and close before reporting success.
 - Add three-platform execution of the documented example, deterministic buffer-overwrite/Unicode and restored-STATIC mutation checks, plus open/prepare/insert/query failures, missing/extra rows and wrong values. Every negative fixture must compile before its nonzero runtime exit can count as a pass.
 - Restore current CI compatibility: use the current macOS ARM runner supported by the MoonBit installer and supported JSON constructors; forward nested object pointers through a qualifier-neutral `void *` trace parameter so SQLite const output parameters compile under stricter C compilers.
 - Update the regenerated SQLite consumer to use the same adapter, and distinguish handwritten lifetime policy in the documentation.
+
+- Run the latest MoonBit compatibility check on Ubuntu, macOS and Windows, including semantic, native startup and SQLite lifetime regressions.
+- Extend clang differential coverage for macro-expanded integer conditions and array/union/tail-padding layouts; keep existing layout discrepancies as hard failures.
+- Record non-gating parse/generation medians for pinned SQLite, zlib, cJSON and Zstandard headers with input hashes and toolchain details.
+- Add a 1.2 release-readiness checklist; 1.1 user trials and Mooncakes publication remain explicitly unresolved.
+
+- GitHub/CLI release: `1.2.0`. Mooncakes `0.12.0` is reserved but not published pending authentication and registry validation; the latest verified package remains `0.10.0` (product 1.0). Independent developer trials remain pending.
 
 # 1.1.0 — 2026-11-03
 

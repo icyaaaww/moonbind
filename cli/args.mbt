@@ -8,8 +8,8 @@
 
 ///|
 /// | The version the binary reports. Kept in step with `release-version.json`;
-/// | the 1.1 acceptance script checks both entry points and package metadata.
-pub let version : String = "1.1.0"
+/// | The 1.2 acceptance script checks both entry points and package metadata.
+pub let version : String = "1.2.0"
 
 ///|
 /// | A fully-resolved invocation.
